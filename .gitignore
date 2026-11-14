@@ -1,0 +1,13 @@
+# Secrets
+.streamlit/secrets.toml
+.env
+
+# Données et runs (re-téléchargées / régénérées par les scripts)
+data/
+runs/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
