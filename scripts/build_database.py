@@ -16,6 +16,7 @@ import json
 import re
 import sys
 import time
+import zipfile
 from pathlib import Path
 
 import duckdb
@@ -386,6 +387,13 @@ def clean_label(series):
     return series.astype("string").str.replace(r"\s+", " ", regex=True).str.strip()
 
 
+def unify_case(series):
+    """Labels that differ only by their case ('Download' and 'DOWNLOAD') get the most frequent spelling."""
+    key = series.str.casefold()
+    preferred = series.groupby(key).agg(lambda s: s.value_counts().index[0])
+    return key.map(preferred).astype("string")
+
+
 def build_qos_indicators(report):
     frames = []
     operators = ["Bouygues Telecom", "Free Mobile", "Orange", "SFR"]
@@ -409,6 +417,9 @@ def build_qos_indicators(report):
                                         "volumetrie": to_int(body[13])}))
     data = pd.concat(frames, ignore_index=True).dropna(subset=["valeur"])
     data["operateur_code"] = data.operateur_code.astype("string")
+    data["service"] = data.service.str.upper()
+    for col in ("strate", "situation", "indicateur"):
+        data[col] = unify_case(data[col])
     report.add(f"Indicateurs globaux : campagnes {data.annee.min()} à {data.annee.max()}, {num(len(data))} valeurs "
                "(2016 à 2018 non chargées : mise en page différente).")
     return data
@@ -572,6 +583,64 @@ def build_fibre(report):
     return networks, groups, national
 
 
+FILOSOFI_MEASURES = {"MED_SL": "niveau_vie_median", "PR_MD60": "taux_pauvrete"}
+
+
+def value_status(rows):
+    """'diffusé', 'secret statistique' or 'non disponible' for each Filosofi value."""
+    status = pd.Series("non disponible", index=rows.index, dtype="string")
+    status[rows.CONF_STATUS.eq("C")] = "secret statistique"
+    status[rows.OBS_VALUE.notna()] = "diffusé"
+    return status
+
+
+def build_revenus(geo, report):
+    with zipfile.ZipFile(RAW / "insee" / "filosofi_2023.zip") as archive:
+        name = next(n for n in archive.namelist() if n.endswith("_data.csv"))
+        raw = pd.read_csv(io.BytesIO(archive.read(name)), sep=";", dtype=str)
+    raw = raw[raw.FILOSOFI_MEASURE.isin(FILOSOFI_MEASURES)]
+    year = int(raw.TIME_PERIOD.iat[0])
+
+    communes = raw[raw.GEO_OBJECT == "COM"].copy()
+    communes["code_insee"] = geo.apply(communes.GEO)
+    communes["status"] = value_status(communes)
+    wide = communes.pivot_table(index="code_insee", columns="FILOSOFI_MEASURE", values=["OBS_VALUE", "status"],
+                                aggfunc="first")
+    revenus = pd.DataFrame({
+        "code_insee": wide.index.astype("string"),
+        "annee": year,
+        "niveau_vie_median": to_float(wide[("OBS_VALUE", "MED_SL")]).values,
+        "statut_niveau_vie": wide[("status", "MED_SL")].astype("string").values,
+        "taux_pauvrete": to_float(wide[("OBS_VALUE", "PR_MD60")]).values,
+        "statut_taux_pauvrete": wide[("status", "PR_MD60")].astype("string").values,
+    })
+    for column_name, label in (("statut_niveau_vie", "niveau de vie médian"), ("statut_taux_pauvrete",
+                                                                              "taux de pauvreté")):
+        counts = revenus[column_name].value_counts()
+        report.add(f"Filosofi {year}, {label} : " + ", ".join(f"{k} {num(int(v))}" for k, v in counts.items())
+                   + f" (sur {num(len(revenus))} communes).")
+    missing = len(geo.codes - set(revenus.code_insee))
+    report.add(f"{missing} communes de 2026 absentes de Filosofi (départements d'outre-mer, îles de Sein et "
+               "d'Ouessant).")
+    geo.report_unknown("Revenus", revenus.code_insee)
+
+    levels = {"FRANCE": "france_metropolitaine", "REG": "region", "DEP": "departement"}
+    territories = raw[raw.GEO_OBJECT.isin(levels)]
+    wide = territories.pivot_table(index=["GEO_OBJECT", "GEO"], columns="FILOSOFI_MEASURE", values="OBS_VALUE",
+                                   aggfunc="first").reset_index()
+    territoires = pd.DataFrame({
+        "niveau": wide.GEO_OBJECT.map(levels).astype("string"),
+        "code_geo": wide.GEO.astype("string"),
+        "annee": year,
+        "niveau_vie_median": to_float(wide.MED_SL),
+        "taux_pauvrete": to_float(wide.PR_MD60),
+    }).sort_values(["niveau", "code_geo"], ignore_index=True)
+    national = territoires[territoires.niveau == "france_metropolitaine"].iloc[0]
+    report.add(f"Territoires : {len(territoires)} lignes ; France métropolitaine : niveau de vie médian "
+               f"{num(int(national.niveau_vie_median))} euros, taux de pauvreté {national.taux_pauvrete} %.")
+    return revenus, territoires
+
+
 def build_sources():
     manifest = json.loads((RAW / "manifest.json").read_text(encoding="utf-8"))
     rows = [{"fichier": path, "jeu_de_donnees": e["dataset"], "url": e["url"], "licence": e["licence"],
@@ -641,6 +710,8 @@ def main():
     pannes = build_outages(geo, report)
     report.section("Qualité des réseaux fibre (ARCEP)")
     fibre_reseaux, fibre_groupes, fibre_nationale = build_fibre(report)
+    report.section("Revenus : Filosofi (INSEE)")
+    revenus, revenus_territoires = build_revenus(geo, report)
     sources = build_sources()
     dictionnaire = pd.DataFrame(dictionary_rows(), columns=["table_nom", "colonne", "description"]).astype("string")
 
@@ -650,6 +721,7 @@ def main():
               "mobile_sites_5g_mensuel": sites_5g, "mobile_qos_indicateurs": qos_indicateurs,
               "mobile_qos_mesures": qos_mesures, "mobile_pannes": pannes, "fibre_qualite_reseaux": fibre_reseaux,
               "fibre_qualite_groupes": fibre_groupes, "fibre_qualite_nationale": fibre_nationale,
+              "revenus_communes": revenus, "revenus_territoires": revenus_territoires,
               "sources": sources, "dictionnaire": dictionnaire}
     tmp = DB_PATH.with_suffix(".tmp.duckdb")
     tmp.unlink(missing_ok=True)

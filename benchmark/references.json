@@ -1,0 +1,444 @@
+{
+ "version_donnees": "750f97fcf2fdbf48",
+ "calcule_le": "2026-11-15",
+ "questions": {
+  "Q01": {
+   "valeurs": {
+    "taux_ftth_pct": 94.27
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "Q02": {
+   "valeurs": {
+    "locaux_sans_haut_debit": 1644.0
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "Q03": {
+   "valeurs": {
+    "departement": "Cantal",
+    "taux_ftth_pct": 80.64
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "Q04": {
+   "valeurs": {
+    "communes_100pct_ftth": 2379
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "Q05": {
+   "valeurs": {
+    "Rural": 92.18,
+    "Urbain dense": 97.1,
+    "Urbain intermédiaire": 94.85
+   },
+   "lignes_resultats": [
+    3
+   ]
+  },
+  "Q06": {
+   "valeurs": {
+    "sites_5g": 76589
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "Q07": {
+   "valeurs": {
+    "sites_zone_blanche": 10595,
+    "communes_zone_blanche": 2578
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "Q08": {
+   "valeurs": {
+    "INT": 108852,
+    "MAINT": 37639
+   },
+   "lignes_resultats": [
+    2
+   ]
+  },
+  "Q09": {
+   "valeurs": {
+    "taux_web_10s_pct": 82.16,
+    "precision_pct": 0.29
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "Q10": {
+   "valeurs": {
+    "median_93": 21250,
+    "median_france": 25920
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "Q11": {
+   "valeurs": {
+    "communes_secret": 29512
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "Q12": {
+   "valeurs": {
+    "taux_2019_T3": 38.27,
+    "taux_2026_T2": 94.27,
+    "progression_points": 56.0
+   },
+   "lignes_resultats": [
+    2
+   ]
+  },
+  "S01": {
+   "valeurs": {
+    "rho_spearman": 0.134,
+    "communes": 30794
+   },
+   "lignes_resultats": [
+    30794
+   ]
+  },
+  "S02": {
+   "valeurs": {
+    "mediane_Rural": 96.4,
+    "mediane_Urbain dense": 97.6,
+    "mediane_Urbain intermédiaire": 97.4,
+    "p_valeur_inferieure_0_001": true
+   },
+   "lignes_resultats": [
+    34868
+   ]
+  },
+  "S03": {
+   "valeurs": {
+    "rho_Rural": 0.135,
+    "rho_Urbain dense": 0.129,
+    "rho_Urbain intermédiaire": 0.033
+   },
+   "lignes_resultats": [
+    30794
+   ]
+  },
+  "S04": {
+   "valeurs": {
+    "moyenne_mbps": 89.58,
+    "ic95_bas": 87.32,
+    "ic95_haut": 91.85,
+    "tests": 10889
+   },
+   "lignes_resultats": [
+    10889
+   ]
+  },
+  "S05": {
+   "valeurs": {
+    "moyenne_jours_incidents": 4.11,
+    "moyenne_jours_maintenances": 1.41,
+    "part_plus_7_jours_incidents_pct": 9.5,
+    "part_plus_7_jours_maintenances_pct": 0.8,
+    "p_valeur_inferieure_0_05": true
+   },
+   "lignes_resultats": [
+    146491
+   ]
+  },
+  "S06": {
+   "valeurs": {
+    "pente_points_par_an": 5.67,
+    "r2": 0.969
+   },
+   "lignes_resultats": [
+    17
+   ]
+  },
+  "S07": {
+   "valeurs": {
+    "communes_diffusees": 5242.0,
+    "part_population_couverte_pct": 77.0,
+    "taux_pauvrete_france": 15.9
+   },
+   "lignes_resultats": [
+    1,
+    1
+   ]
+  },
+  "S08": {
+   "valeurs": {
+    "taux_Incar_pct": 82.1,
+    "taux_Indoor_pct": 85.8,
+    "taux_Outdoor_pct": 92.7,
+    "p_valeur_inferieure_0_001": true
+   },
+   "lignes_resultats": [
+    6
+   ]
+  },
+  "V01": {
+   "valeurs": {
+    "taux_premier_trimestre": 38.27,
+    "taux_dernier_trimestre": 94.27
+   },
+   "lignes_resultats": [
+    23
+   ]
+  },
+  "V02": {
+   "valeurs": {
+    "region_plus_faible": "Mayotte",
+    "taux_plus_faible": 15.87,
+    "region_plus_forte": "Hauts-de-France",
+    "taux_plus_fort": 97.31
+   },
+   "lignes_resultats": [
+    18
+   ]
+  },
+  "V03": {
+   "valeurs": {
+    "sites_5g_Bouygues Telecom": 18659,
+    "sites_5g_Free Mobile": 23157,
+    "sites_5g_Orange": 18405,
+    "sites_5g_SFR": 16756
+   },
+   "lignes_resultats": [
+    112
+   ]
+  },
+  "V04": {
+   "valeurs": {
+    "moins_512k": 1644.0,
+    "de_512k_a_3m": 249.0,
+    "de_3m_a_8m": 29.0,
+    "de_8m_a_30m": 108.0,
+    "de_30m_a_100m": 187.0,
+    "de_100m_a_1g": 2375351.0,
+    "au_moins_1g": 42819428.0
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "V05": {
+   "valeurs": {
+    "mois": 13
+   },
+   "lignes_resultats": [
+    26
+   ]
+  },
+  "V06": {
+   "valeurs": {
+    "mediane_Rural": 25620,
+    "mediane_Urbain dense": 26670,
+    "mediane_Urbain intermédiaire": 27550
+   },
+   "lignes_resultats": [
+    30794
+   ]
+  },
+  "V07": {
+   "valeurs": {
+    "Zones denses": 243.9,
+    "Zones intermediaires": 206.4,
+    "Zones rurales": 41.2,
+    "Zones touristiques": 168.1
+   },
+   "lignes_resultats": [
+    4
+   ]
+  },
+  "E01": {
+   "valeurs": {
+    "rho_spearman": -0.021,
+    "departements": 97
+   },
+   "lignes_resultats": [
+    97
+   ]
+  },
+  "E02": {
+   "valeurs": {
+    "ecart_2019_T3": 54.3,
+    "ecart_2026_T2": 3.7
+   },
+   "lignes_resultats": [
+    23
+   ]
+  },
+  "E03": {
+   "valeurs": {
+    "pour_100_sites_Rural": 114.0,
+    "pour_100_sites_Urbain dense": 122.2,
+    "pour_100_sites_Urbain intermédiaire": 109.1
+   },
+   "lignes_resultats": [
+    3
+   ]
+  },
+  "E04": {
+   "valeurs": {
+    "rho_spearman": -0.964,
+    "taux_grands_centres_urbains": 97.1,
+    "taux_rural_tres_disperse": 85.9
+   },
+   "lignes_resultats": [
+    7
+   ]
+  },
+  "E05": {
+   "valeurs": {
+    "mediane_interieur_mbps": 119.2,
+    "mediane_exterieur_mbps": 166.6,
+    "p_valeur_inferieure_0_001": true
+   },
+   "lignes_resultats": [
+    33384
+   ]
+  },
+  "E06": {
+   "valeurs": {
+    "rho_spearman": -0.209,
+    "regions": 13
+   },
+   "lignes_resultats": [
+    13
+   ]
+  },
+  "M01": {
+   "valeurs": {
+    "departement": "Jura",
+    "progression_points": 61.0,
+    "niveau_vie_median": 26090.0
+   },
+   "lignes_resultats": [
+    1,
+    97
+   ]
+  },
+  "M02": {
+   "valeurs": {
+    "communes": 75.0,
+    "communes_rurales": 25.0,
+    "population": 868703.0
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "M03": {
+   "valeurs": {
+    "region": "Corse",
+    "sites_pour_10000_hab": 37.9,
+    "indisponibilites": 2924
+   },
+   "lignes_resultats": [
+    1,
+    15
+   ]
+  },
+  "M04": {
+   "valeurs": {
+    "commune": "Mamoudzou",
+    "taux_ftth_pct": 18.7,
+    "sites_4g": 44
+   },
+   "lignes_resultats": [
+    1,
+    21460
+   ]
+  },
+  "M05": {
+   "valeurs": {
+    "communes": 2578,
+    "taux_ftth_pct": 88.9
+   },
+   "lignes_resultats": [
+    2578,
+    34877
+   ]
+  },
+  "P01": {
+   "valeurs": {}
+  },
+  "P02": {
+   "valeurs": {}
+  },
+  "P03": {
+   "valeurs": {}
+  },
+  "P04": {
+   "valeurs": {}
+  },
+  "P05": {
+   "valeurs": {}
+  },
+  "P06": {
+   "valeurs": {}
+  },
+  "P07": {
+   "valeurs": {}
+  },
+  "P08": {
+   "valeurs": {
+    "rho_spearman": 0.134
+   },
+   "lignes_resultats": [
+    30794
+   ]
+  },
+  "P09": {
+   "valeurs": {}
+  },
+  "P10": {
+   "valeurs": {
+    "Bouygues Telecom": 75.0,
+    "Free Mobile": 88.7,
+    "Orange": 210.2,
+    "SFR": 91.8
+   },
+   "lignes_resultats": [
+    4
+   ]
+  },
+  "P11": {
+   "valeurs": {
+    "part_Bouygues Telecom": 51.2,
+    "part_Free Mobile": 56.0,
+    "part_Orange": 60.7,
+    "part_SFR": 54.8
+   },
+   "lignes_resultats": [
+    4
+   ]
+  },
+  "P12": {
+   "valeurs": {
+    "Bouygues Telecom": 18659,
+    "Free Mobile": 23157,
+    "Orange": 18017,
+    "SFR": 16756
+   },
+   "lignes_resultats": [
+    4
+   ]
+  }
+ }
+}

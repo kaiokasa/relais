@@ -320,6 +320,40 @@ TABLES = {
             "taux_abonnes_avec_panne": "Part des abonnés ayant subi une panne",
         },
     },
+    "revenus_communes": {
+        "description": "Niveau de vie médian et taux de pauvreté par commune en 2023 (INSEE, Filosofi 2023, "
+                       "France métropolitaine). Beaucoup de valeurs sont masquées par le secret statistique (petites "
+                       "communes), surtout le taux de pauvreté : une valeur vide n'est pas un zéro, et une moyenne "
+                       "calculée sur les seules communes diffusées n'est pas représentative de toutes les communes. "
+                       "Une médiane ne s'additionne pas et ne se moyenne pas pour obtenir celle d'un département : "
+                       "utiliser revenus_territoires.",
+        "grain": "une ligne par commune de France métropolitaine",
+        "cle": "code_insee",
+        "colonnes": {
+            "code_insee": "Code commune INSEE (géographie 2026)",
+            "annee": "Année des revenus (2023)",
+            "niveau_vie_median": "Niveau de vie médian des personnes de la commune, en euros par an (vide si non "
+                                 "diffusé)",
+            "statut_niveau_vie": "diffusé, secret statistique ou non disponible",
+            "taux_pauvrete": "Taux de pauvreté au seuil de 60 % du niveau de vie médian métropolitain, en % (vide "
+                             "si non diffusé)",
+            "statut_taux_pauvrete": "diffusé, secret statistique ou non disponible",
+        },
+    },
+    "revenus_territoires": {
+        "description": "Niveau de vie médian et taux de pauvreté en 2023 pour la France métropolitaine, les "
+                       "régions et les départements (INSEE, Filosofi 2023), calculés par l'INSEE sur toute la "
+                       "population : la bonne source pour un niveau supérieur à la commune.",
+        "grain": "une ligne par territoire",
+        "cle": "niveau, code_geo",
+        "colonnes": {
+            "niveau": "france_metropolitaine, region ou departement",
+            "code_geo": "Code du territoire (FM pour la France métropolitaine, code région ou département)",
+            "annee": "Année des revenus (2023)",
+            "niveau_vie_median": "Niveau de vie médian, en euros par an",
+            "taux_pauvrete": "Taux de pauvreté au seuil de 60 %, en %",
+        },
+    },
     "sources": {
         "description": "Fichiers sources de la base : URL, licence, empreinte sha256, date de téléchargement.",
         "grain": "un fichier téléchargé",

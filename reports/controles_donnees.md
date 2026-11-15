@@ -42,6 +42,14 @@ Opérateurs : Orange 69101, SFR 28119, Free 27422, Bouygues Telecom 23325.
 
 Réseaux : 4221 lignes, 223 réseaux, périodes 11/22 - 04/23 à 03/2026 ; groupes : 561 lignes ; national : 36 mois. Fichier des malfaçons de raccordement non chargé (formats de période mélangés).
 
+## Revenus : Filosofi (INSEE)
+
+Filosofi 2023, niveau de vie médian : diffusé 30 794, secret statistique 3 960, non disponible 14 (sur 34 768 communes).
+Filosofi 2023, taux de pauvreté : secret statistique 29 512, diffusé 5 242, non disponible 14 (sur 34 768 communes).
+107 communes de 2026 absentes de Filosofi (départements d'outre-mer, îles de Sein et d'Ouessant).
+Revenus : tous les codes commune existent dans la géographie 2026.
+Territoires : 112 lignes ; France métropolitaine : niveau de vie médian 25 920 euros, taux de pauvreté 15.9 %.
+
 ## Base construite
 
 | table | lignes | granularité |
@@ -61,7 +69,9 @@ Réseaux : 4221 lignes, 223 réseaux, périodes 11/22 - 04/23 à 03/2026 ; group
 | fibre_qualite_reseaux | 4 221 | une ligne par période, réseau et périmètre (réseau entier ou département) |
 | fibre_qualite_groupes | 561 | une ligne par mois et par groupe |
 | fibre_qualite_nationale | 36 | une ligne par mois |
-| sources | 490 | un fichier téléchargé |
-| dictionnaire | 191 | une ligne par colonne (et une par table, colonne vide) |
+| revenus_communes | 34 768 | une ligne par commune de France métropolitaine |
+| revenus_territoires | 112 | une ligne par territoire |
+| sources | 491 | un fichier téléchargé |
+| dictionnaire | 204 | une ligne par colonne (et une par table, colonne vide) |
 
-connectivite.duckdb : 72 Mo, construite en 96 s.
+connectivite.duckdb : 72 Mo, construite en 99 s.

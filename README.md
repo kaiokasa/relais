@@ -7,7 +7,7 @@ questions sur les données ouvertes de l'ARCEP et de l'INSEE. Chaque action des 
 OpenTelemetry, convertie en journaux d'événements (XES, OCEL 2.0) et étudiée par process mining : variabilité d'une
 exécution à l'autre, facteurs qui l'influencent, prédiction d'échec en cours de run.
 
-Projet en construction. Étape actuelle : **base de données** (étape 1 sur 11).
+Projet en construction. Étape actuelle : **jeu de questions** (étape 2 sur 11).
 
 ## Données
 
@@ -22,6 +22,7 @@ fichier, dans la table `sources` de la base.
 | [Sites indisponibles](https://www.data.gouv.fr/datasets/sites-indisponibles) | ARCEP | Licence Ouverte v1.0 | Pannes et maintenances de sites mobiles, 12 derniers mois |
 | [Qualité des réseaux en fibre optique](https://www.data.gouv.fr/datasets/qualite-des-reseaux-en-fibre-optique) | ARCEP | Licence Ouverte v2.0 | Taux de pannes et d'échecs de raccordement FttH |
 | [Grille communale de densité 2026](https://www.insee.fr/fr/information/8571524) | INSEE | Licence Ouverte v2.0 ([conditions INSEE](https://www.insee.fr/fr/information/2008466)) | Communes, population municipale 2023, niveaux de densité |
+| [Filosofi 2023](https://catalogue-donnees.insee.fr/fr/catalogue/recherche/DS_FILOSOFI_CC) | INSEE | Licence Ouverte v2.0 ([conditions INSEE](https://www.insee.fr/fr/information/2008466)) | Niveau de vie médian et taux de pauvreté par commune (avec le secret statistique), département, région |
 | [Code officiel géographique 2026](https://www.data.gouv.fr/datasets/code-officiel-geographique-1) | INSEE | Licence Ouverte v1.0 | Départements, régions, fusions de communes |
 
 Ces données ne contiennent ni prix d'abonnement, ni nombre d'abonnés, ni satisfaction client : les questions qui
@@ -50,7 +51,32 @@ Ce que le nettoyage a trouvé dans les fichiers publiés est détaillé dans
   la géographie 2026 ;
 - des numéros de sites mobiles ont été abîmés par un tableur (1,03E+05) : la table utilise une clé technique ;
 - les pannes sont publiées en fichiers quotidiens des pannes en cours : elles sont fusionnées en incidents ;
-- les colonnes imei et imsi des mesures sont vérifiées vides et ne sont jamais chargées.
+- les colonnes imei et imsi des mesures sont vérifiées vides et ne sont jamais chargées ;
+- Filosofi 2023 : le taux de pauvreté est couvert par le secret statistique dans 29 512 communes sur 34 768 ; chaque valeur porte son statut (diffusé, secret statistique, non disponible).
+
+## Jeu de questions
+
+[`benchmark/questions.yaml`](benchmark/questions.yaml) contient 50 questions, écrites avant les agents pour ne pas
+être ajustées à leurs réponses : SQL seul (12), SQL + statistiques (8), SQL + visualisation (7), équipe complète
+(6), plusieurs étapes (5) et 12 pièges (questions ambiguës, réponses absentes des données, questions causales
+déguisées, comparaisons d'opérateurs qui doivent rester factuelles).
+
+Chaque question porte :
+
+- le statut attendu de la réponse (répondue, demande de clarification, ou impossible avec ces données) ;
+- le **parcours attendu** dans l'équipe (par exemple planificateur, SQL, statistiques, relecteur), qui sert de
+  modèle de référence pour le conformance checking ;
+- un SQL de référence et, pour les questions statistiques, le calcul de référence (scipy) ;
+- les vérifications automatiques de la réponse : chiffres attendus avec leur tolérance, mentions obligatoires
+  (par exemple « corrélation » et « causalité » pour une question causale), formulations interdites (« meilleur
+  opérateur »), type de graphique.
+
+```bash
+python benchmark/build_references.py   # calcule les réponses de référence -> benchmark/references.json
+```
+
+Les réponses de référence ne sont pas saisies à la main : elles sont calculées depuis la base et figées avec la
+version des données utilisée.
 
 ## Tests
 

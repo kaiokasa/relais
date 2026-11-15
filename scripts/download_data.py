@@ -30,18 +30,19 @@ HEADERS = {"User-Agent": "relais-data-downloader"}
 OPEN_LICENCES = {"lov2": "Licence Ouverte v2.0 (Etalab)", "fr-lo": "Licence Ouverte v1.0 (Etalab)"}
 INSEE_CONDITIONS = "https://www.insee.fr/fr/information/2008466"
 
-# dataset id -> data.gouv.fr slug (licence checked through the API), None for the INSEE density grid (licence:
-# INSEE reuse conditions, Licence Ouverte v2)
+# dataset id -> data.gouv.fr slug (licence checked through the API), None for the files published on insee.fr only
+# (licence: INSEE reuse conditions, Licence Ouverte v2)
 DATASETS = {
     "insee_grille_densite": None,
     "insee_cog": "code-officiel-geographique-1",
+    "insee_filosofi": None,
     "arcep_fixe": "ma-connexion-internet",
     "arcep_sites": "mon-reseau-mobile",
     "arcep_qos": "mon-reseau-mobile",
     "arcep_pannes": "sites-indisponibles",
     "arcep_fibre": "qualite-des-reseaux-en-fibre-optique",
 }
-GROUPS = {"insee": ["insee_grille_densite", "insee_cog"]}
+GROUPS = {"insee": ["insee_grille_densite", "insee_cog", "insee_filosofi"]}
 
 
 # ---------------------------------------------------------------------------------------------- HTTP helpers
@@ -120,6 +121,12 @@ def insee_cog():
     base = "https://www.insee.fr/fr/statistiques/fichier/8740222/"
     for name in ("v_commune_2026", "v_departement_2026", "v_region_2026", "v_mvt_commune_2026"):
         yield base + name + ".csv", f"insee/{name}.csv"
+
+
+def insee_filosofi():
+    """Filosofi 2023: median standard of living and poverty rate (latest edition, no 2022 edition was published)."""
+    yield ("https://api.insee.fr/melodi/file/DS_FILOSOFI_CC/DS_FILOSOFI_CC_2023_CSV_FR",
+           "insee/filosofi_2023.zip")
 
 
 def fixe_files(entries, level="commune"):
