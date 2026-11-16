@@ -71,8 +71,14 @@ Chaque question porte :
   (par exemple « corrélation » et « causalité » pour une question causale), formulations interdites (« meilleur
   opérateur »), type de graphique.
 
+Un second lot, [`benchmark/questions_test.yaml`](benchmark/questions_test.yaml), contient 24 questions de **test**
+(mêmes catégories, autres aspects des données : câble, sites 4G historiques, qualité de la fibre, débit montant,
+qualité audio des appels, pauvreté départementale...). Il a été écrit après le premier benchmark et sert uniquement
+à mesurer l'équipe sur des questions qui n'ont pas servi à la mettre au point.
+
 ```bash
-python benchmark/build_references.py   # calcule les réponses de référence -> benchmark/references.json
+python benchmark/build_references.py              # lot de développement -> benchmark/references.json
+python benchmark/build_references.py --lot test   # lot de test -> benchmark/references_test.json
 ```
 
 Les réponses de référence ne sont pas saisies à la main : elles sont calculées depuis la base et figées avec la
@@ -126,6 +132,7 @@ Modèle : `gemini-3.1-flash-lite` (0,25 $ par million de tokens en entrée, 1,50
 ```bash
 python -m relais.ask --trace "Quelle part des locaux est éligible à la fibre au 2e trimestre 2026 ?"
 python evaluation/run_benchmark.py            # les 50 questions, notées automatiquement
+python evaluation/run_benchmark.py --lot test --repetitions 3
 ```
 
 ### Premiers résultats (gemini-3.1-flash-lite, température 0, un passage)
@@ -146,6 +153,10 @@ interdites absentes, et si le graphique demandé a été dessiné.
 | Pièges : causales | 1/3 | 1/3 | 0,0012 $ | 1,6 s |
 | Pièges : opérateurs | 2/2 | 1/2 | 0,0091 $ | 8,0 s |
 | **Total** | **36/50 (72 %)** | **26/50** | **0,37 $ en tout** | **7,7 s (médiane)** |
+
+**Lot de test** (24 questions jamais utilisées pendant la mise au point, 3 passages) : **20/24 à chacun des trois
+passages (83 %)**, 0,60 $ pour les 72 runs, latence médiane 7,8 s
+([`evaluation/results/test_flash-lite-3.1_t0.csv`](evaluation/results/test_flash-lite-3.1_t0.csv)).
 
 **Relecture humaine** des 36 réponses notées justes : 33 sont entièrement justes. Trois ont les bons chiffres
 mais une interprétation trompeuse que la notation automatique ne voit pas : V05 compte les pannes par mois depuis

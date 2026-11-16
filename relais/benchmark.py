@@ -12,6 +12,9 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 QUESTIONS_FILE = ROOT / "benchmark" / "questions.yaml"
 REFERENCES_FILE = ROOT / "benchmark" / "references.json"
+# dev: the 50 questions used to build and improve the team; test: 24 questions kept aside, only used to measure
+LOTS = {"dev": (QUESTIONS_FILE, REFERENCES_FILE),
+        "test": (ROOT / "benchmark" / "questions_test.yaml", ROOT / "benchmark" / "references_test.json")}
 
 AGENTS = ("planificateur", "sql", "statistiques", "visualisation", "relecteur")
 WORKERS = ("sql", "statistiques", "visualisation")

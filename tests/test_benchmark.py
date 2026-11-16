@@ -94,3 +94,13 @@ def test_default_reference_values():
     assert build_references.default_values([two_columns]) == {"dense": 243.9, "rurale": 41.2}
     with pytest.raises(ValueError):
         build_references.default_values([pd.DataFrame({"a": [1, 2], "b": [3, 4], "c": [5, 6]})])
+
+
+def test_the_test_set_is_valid_separate_and_has_references():
+    test_file, references_file = benchmark.LOTS["test"]
+    test = load_questions(test_file)
+    assert len(test) == 24 and set(Counter(q.categorie for q in test)) == set(benchmark.CATEGORIES)
+    assert not {q.id for q in test} & {q.id for q in load_questions()}
+    assert not {q.question for q in test} & {q.question for q in load_questions()}
+    references = json.loads(references_file.read_text(encoding="utf-8"))
+    assert set(references["questions"]) == {q.id for q in test}

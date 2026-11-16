@@ -21,7 +21,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from benchmark.build_references import data_version  # noqa: E402
-from relais.benchmark import CATEGORIES, REFERENCES_FILE, load_questions  # noqa: E402
+from relais.benchmark import CATEGORIES, LOTS, load_questions  # noqa: E402
 from relais.evaluation import evaluate  # noqa: E402
 from relais.llm import chat_model, model_name  # noqa: E402
 from relais.team.graph import Team  # noqa: E402
@@ -90,6 +90,7 @@ def print_summary(frame):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--lot", choices=list(LOTS), default="dev", help="dev (50 questions) or test (24)")
     parser.add_argument("--ids", nargs="+", help="questions to run (all by default)")
     parser.add_argument("--modele", default=None)
     parser.add_argument("--temperature", type=float, default=0.0)
@@ -98,20 +99,21 @@ def main():
     parser.add_argument("--nom", default=None, help="name of the run (folder and CSV file)")
     args = parser.parse_args()
 
-    questions = load_questions()
+    questions_file, references_file = LOTS[args.lot]
+    questions = load_questions(questions_file)
     if args.ids:
         unknown = set(args.ids) - {q.id for q in questions}
         if unknown:
             sys.exit(f"Unknown questions: {sorted(unknown)}")
         questions = [q for q in questions if q.id in args.ids]
-    references = json.loads(REFERENCES_FILE.read_text(encoding="utf-8"))
+    references = json.loads(references_file.read_text(encoding="utf-8"))
     con = open_locked_copy()
     if references["version_donnees"] != data_version(con):
         sys.exit("The references were computed on other data: run benchmark/build_references.py first.")
 
     model = model_name(args.modele)
-    config = {"modele": model, "temperature": args.temperature, "prompt": args.prompt}
-    name = args.nom or f"{dt.datetime.now():%Y%m%d_%H%M%S}_{model}_t{args.temperature:g}_{args.prompt}"
+    config = {"modele": model, "temperature": args.temperature, "prompt": args.prompt, "lot": args.lot}
+    name = args.nom or f"{dt.datetime.now():%Y%m%d_%H%M%S}_{args.lot}_{model}_t{args.temperature:g}_{args.prompt}"
     folder = RUNS / name
     folder.mkdir(parents=True, exist_ok=True)
     team = Team(chat_model(args.modele, args.temperature), con, planner_prompt=args.prompt)

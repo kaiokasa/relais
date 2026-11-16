@@ -1,0 +1,211 @@
+{
+ "version_donnees": "750f97fcf2fdbf48",
+ "calcule_le": "2026-11-16",
+ "questions": {
+  "T01": {
+   "valeurs": {
+    "locaux_cable": 7855258
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "T02": {
+   "valeurs": {
+    "departement": "Var",
+    "locaux_sans_haut_debit": 845
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "T03": {
+   "valeurs": {
+    "sites": 14440
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "T04": {
+   "valeurs": {
+    "taux_60j_pct": 86.1
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "T05": {
+   "valeurs": {
+    "communes": 7236,
+    "population": 1655251
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "T06": {
+   "valeurs": {
+    "taux_nord": 20.7,
+    "taux_france": 15.9
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "T07": {
+   "valeurs": {
+    "rho_spearman": 0.067
+   },
+   "lignes_resultats": [
+    34868
+   ]
+  },
+  "T08": {
+   "valeurs": {
+    "taux_denses_pct": 95.2,
+    "taux_rurales_pct": 83.4,
+    "p_valeur_inferieure_0_001": true
+   },
+   "lignes_resultats": [
+    4
+   ]
+  },
+  "T09": {
+   "valeurs": {
+    "mos_moyen": 4.481,
+    "ic95_bas": 4.478,
+    "ic95_haut": 4.484,
+    "ic95_demi_largeur": 0.003
+   },
+   "lignes_resultats": [
+    95869
+   ]
+  },
+  "T10": {
+   "valeurs": {
+    "rho_spearman": 0.065
+   },
+   "lignes_resultats": [
+    96
+   ]
+  },
+  "T11": {
+   "valeurs": {
+    "releves": 8
+   },
+   "lignes_resultats": [
+    32
+   ]
+  },
+  "T12": {
+   "valeurs": {
+    "ftth": 42606741,
+    "cuivre": 23376733
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "T13": {
+   "valeurs": {
+    "communes": 5242
+   },
+   "lignes_resultats": [
+    1
+   ]
+  },
+  "T14": {
+   "valeurs": {
+    "sites_5g_dernier_mois": 77816
+   },
+   "lignes_resultats": [
+    28
+   ]
+  },
+  "T15": {
+   "valeurs": {
+    "rho_spearman": 0.025
+   },
+   "lignes_resultats": [
+    96
+   ]
+  },
+  "T16": {
+   "valeurs": {
+    "mediane_Zones denses": 15.6,
+    "mediane_Zones intermediaires": 14.6,
+    "mediane_Zones rurales": 3.5,
+    "mediane_Zones touristiques": 10.6,
+    "p_valeur_inferieure_0_001": true
+   },
+   "lignes_resultats": [
+    16682
+   ]
+  },
+  "T17": {
+   "valeurs": {
+    "moyenne_Bouygues Telecom": 3.55,
+    "moyenne_Free": 1.91,
+    "moyenne_Orange": 3.99,
+    "moyenne_SFR": 3.24,
+    "p_valeur_inferieure_0_001": true
+   },
+   "lignes_resultats": [
+    147967
+   ]
+  },
+  "T18": {
+   "valeurs": {
+    "commune": "Avignon",
+    "taux_ftth_pct": 83.1,
+    "indisponibilites": 223
+   },
+   "lignes_resultats": [
+    1,
+    17831
+   ]
+  },
+  "T19": {
+   "valeurs": {
+    "departement": "Hauts-de-Seine",
+    "niveau_vie_median": 33790,
+    "taux_1g_pct": 98.3
+   },
+   "lignes_resultats": [
+    1,
+    101
+   ]
+  },
+  "T20": {
+   "valeurs": {
+    "communes": 13417,
+    "population": 5019590
+   },
+   "lignes_resultats": [
+    21460,
+    34875
+   ]
+  },
+  "T21": {
+   "valeurs": {}
+  },
+  "T22": {
+   "valeurs": {}
+  },
+  "T23": {
+   "valeurs": {}
+  },
+  "T24": {
+   "valeurs": {
+    "taux_Bouygues Telecom": 84.4,
+    "taux_Free Mobile": 85.4,
+    "taux_Orange": 89.8,
+    "taux_SFR": 84.9
+   },
+   "lignes_resultats": [
+    4
+   ]
+  }
+ }
+}

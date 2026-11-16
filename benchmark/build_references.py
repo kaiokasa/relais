@@ -5,7 +5,8 @@ Every reference SQL runs on a read-only connection; the optional reference compu
 the questions, not by an LLM) turns the results into named values. The file also records which version of the data
 was used (a digest of the sha256 of the source files), so a later run on other data is detected.
 
-    python benchmark/build_references.py
+    python benchmark/build_references.py              # development set
+    python benchmark/build_references.py --lot test   # test set
 """
 import datetime as dt
 import hashlib
@@ -21,7 +22,7 @@ from scipy import stats
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from relais.benchmark import REFERENCES_FILE, expected_values, load_questions  # noqa: E402
+from relais.benchmark import LOTS, expected_values, load_questions  # noqa: E402
 
 DB_PATH = ROOT / "data" / "connectivite.duckdb"
 
@@ -70,7 +71,12 @@ def compute(question, con):
 
 
 def main():
-    questions = load_questions()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--lot", choices=list(LOTS), default="dev")
+    lot = parser.parse_args().lot
+    questions_file, references_file = LOTS[lot]
+    questions = load_questions(questions_file)
     con = duckdb.connect(str(DB_PATH), read_only=True)
     references, failures = {}, []
     for q in questions:
@@ -89,8 +95,8 @@ def main():
         sys.exit("Reference computation failed:\n  " + "\n  ".join(failures))
     payload = {"version_donnees": data_version(con), "calcule_le": dt.date.today().isoformat(),
                "questions": references}
-    REFERENCES_FILE.write_text(json.dumps(payload, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"{len(questions)} questions, references written to {REFERENCES_FILE.relative_to(ROOT)}")
+    references_file.write_text(json.dumps(payload, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"{len(questions)} questions, references written to {references_file.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,370 @@
+# Lot de TEST de Relais : 24 questions écrites après le premier benchmark, sur lesquelles l'équipe n'a jamais été
+# lancée pendant la mise au point. Les améliorations de l'équipe se font en regardant uniquement le lot de
+# développement (questions.yaml) ; ce lot ne sert qu'à mesurer, avant et après. Même format que questions.yaml.
+
+# ------------------------------------------------------------------------------------------- SQL seul
+
+- id: T01
+  categorie: sql
+  question: Combien de locaux sont éligibles au câble (réseau coaxial) en France au 2e trimestre 2026 ?
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, planificateur, relecteur]
+  sql_reference: |
+    SELECT sum(locaux_eligibles_cable)::BIGINT AS locaux_cable
+    FROM fixe_technologies WHERE trimestre = '2026_T2'
+
+- id: T02
+  categorie: sql
+  question: >-
+    Quel département compte le plus de locaux sans accès au haut débit (moins de 512 kbit/s) au 2e trimestre 2026,
+    et combien ?
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, planificateur, relecteur]
+  sql_reference: |
+    SELECT d.nom AS departement, sum(f.locaux_sans_haut_debit)::BIGINT AS locaux_sans_haut_debit
+    FROM fixe_debits f JOIN communes c USING (code_insee) JOIN departements d USING (dep_code)
+    WHERE f.trimestre = '2026_T2' GROUP BY d.nom ORDER BY locaux_sans_haut_debit DESC LIMIT 1
+
+- id: T03
+  categorie: sql
+  question: Combien de sites mobiles Free Mobile déclarait en métropole au 4e trimestre 2018 ?
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, planificateur, relecteur]
+  sql_reference: |
+    SELECT count(*) AS sites FROM mobile_sites
+    WHERE trimestre = '2018_T4' AND operateur_code = '20815' AND territoire = 'metropole'
+
+- id: T04
+  categorie: sql
+  question: >-
+    Au niveau national, quelle part des raccordements à la fibre a été mise en service en moins de 60 jours lors du
+    dernier mois publié par l'ARCEP ?
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, planificateur, relecteur]
+  sql_reference: |
+    SELECT mois, round(100 * taux_mise_en_service_60j, 1) AS taux_60j_pct FROM fibre_qualite_nationale
+    WHERE taux_mise_en_service_60j IS NOT NULL ORDER BY mois DESC LIMIT 1
+  calcul_reference: |
+    ligne = resultats[0].iloc[0]
+    valeurs = {"taux_60j_pct": float(ligne.taux_60j_pct)}
+
+- id: T05
+  categorie: sql
+  question: >-
+    Combien de communes sont classées « rural à habitat très dispersé » dans la grille de densité de l'INSEE, et
+    quelle population totale y vit ?
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, planificateur, relecteur]
+  sql_reference: |
+    SELECT count(*) AS communes, sum(population)::BIGINT AS population FROM communes WHERE densite_7 = 7
+
+- id: T06
+  categorie: sql
+  question: Quel est le taux de pauvreté dans le département du Nord, comparé à celui de la France métropolitaine ?
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, planificateur, relecteur]
+  sql_reference: |
+    SELECT max(taux_pauvrete) FILTER (WHERE niveau = 'departement' AND code_geo = '59') AS taux_nord,
+           max(taux_pauvrete) FILTER (WHERE niveau = 'france_metropolitaine') AS taux_france
+    FROM revenus_territoires
+
+# ------------------------------------------------------------------------------------------- SQL + statistiques
+
+- id: T07
+  categorie: sql_stats
+  question: >-
+    Au 2e trimestre 2026, le taux d'éligibilité FttH des communes est-il corrélé à leur population ? Donne la
+    corrélation de Spearman sur les communes qui ont au moins un local.
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, statistiques, planificateur, relecteur]
+  sql_reference: |
+    SELECT c.population, 1.0 * f.locaux_eligibles_ftth / f.nb_locaux AS taux_ftth
+    FROM fixe_technologies f JOIN communes c USING (code_insee)
+    WHERE f.trimestre = '2026_T2' AND f.nb_locaux > 0
+  calcul_reference: |
+    df = resultats[0]
+    valeurs = {"rho_spearman": round(stats.spearmanr(df.population, df.taux_ftth)[0], 3)}
+  tolerance_abs: 0.01
+
+- id: T08
+  categorie: sql_stats
+  question: >-
+    Lors de la campagne ARCEP 2025, la part des pages web chargées en moins de 10 secondes diffère-t-elle entre
+    zones denses et zones rurales ? Donne les deux taux, calculés sur les tests web, et teste la différence.
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, statistiques, planificateur, relecteur]
+  sql_reference: |
+    SELECT zone, page_web_moins_10s, count(*) AS tests FROM mobile_qos_mesures
+    WHERE protocole = 'WEB' AND zone IN ('Zones denses', 'Zones rurales') GROUP BY ALL ORDER BY ALL
+  calcul_reference: |
+    table = resultats[0].pivot(index="zone", columns="page_web_moins_10s", values="tests")
+    chi2, p, ddl, attendu = stats.chi2_contingency(table)
+    valeurs = {"taux_denses_pct": round(100 * table.loc["Zones denses", True] / table.loc["Zones denses"].sum(), 1),
+               "taux_rurales_pct": round(100 * table.loc["Zones rurales", True] / table.loc["Zones rurales"].sum(), 1),
+               "p_valeur_inferieure_0_001": bool(p < 0.001)}
+  mentions: ['significati']
+  piege: Le taux se calcule sur les seuls tests web, pas sur tous les tests de la zone.
+
+- id: T09
+  categorie: sql_stats
+  question: >-
+    Lors de la campagne ARCEP 2025, quelle est la note moyenne de qualité audio (MOS) des appels voix, avec son
+    intervalle de confiance à 95 % ?
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, statistiques, planificateur, relecteur]
+  sql_reference: |
+    SELECT mos_moyen FROM mobile_qos_mesures WHERE protocole = 'VOIX' AND mos_moyen IS NOT NULL
+  calcul_reference: |
+    x = resultats[0].mos_moyen
+    moyenne, erreur = x.mean(), stats.sem(x)
+    bas, haut = stats.t.interval(0.95, len(x) - 1, loc=moyenne, scale=erreur)
+    valeurs = {"mos_moyen": round(moyenne, 3), "ic95_bas": round(bas, 3), "ic95_haut": round(haut, 3),
+               "ic95_demi_largeur": round((haut - bas) / 2, 3)}
+  valeurs_attendues: [mos_moyen]
+  mentions: ['intervalle']
+  tolerance_abs: 0.005
+  piege: L'intervalle est très étroit (des dizaines de milliers d'appels) ; seule la moyenne est vérifiée.
+
+- id: T10
+  categorie: sql_stats
+  question: >-
+    Le taux de pauvreté des départements de métropole est-il corrélé à leur part de locaux pouvant avoir au moins
+    1 Gbit/s au 2e trimestre 2026 ? Donne la corrélation de Spearman.
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, statistiques, planificateur, relecteur]
+  sql_reference: |
+    SELECT t.code_geo, t.taux_pauvrete, 100.0 * sum(d.locaux_1g_ou_plus) / sum(d.nb_locaux) AS taux_1g_pct
+    FROM fixe_debits d JOIN communes c USING (code_insee)
+    JOIN revenus_territoires t ON t.niveau = 'departement' AND t.code_geo = c.dep_code
+    WHERE d.trimestre = '2026_T2' AND c.dep_code NOT LIKE '97%' GROUP BY t.code_geo, t.taux_pauvrete
+  calcul_reference: |
+    df = resultats[0]
+    valeurs = {"rho_spearman": round(stats.spearmanr(df.taux_pauvrete, df.taux_1g_pct)[0], 3)}
+  tolerance_abs: 0.01
+
+# ------------------------------------------------------------------------------------------- SQL + visualisation
+
+- id: T11
+  categorie: sql_viz
+  question: >-
+    Montre l'évolution, d'un relevé de fin d'année à l'autre depuis 2018, du nombre de sites 4G de chacun des
+    quatre opérateurs de métropole.
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, visualisation, planificateur, relecteur]
+  sql_reference: |
+    SELECT m.trimestre, o.nom AS operateur, count(*) FILTER (WHERE m.site_4g) AS sites_4g
+    FROM mobile_sites m JOIN operateurs o USING (operateur_code)
+    WHERE m.territoire = 'metropole' AND m.trimestre LIKE '%_T4' GROUP BY ALL ORDER BY ALL
+  calcul_reference: |
+    df = resultats[0]
+    valeurs = {"releves": df.trimestre.nunique()}
+  valeurs_attendues: []
+  graphique: {type: line, series: 4}
+
+- id: T12
+  categorie: sql_viz
+  question: >-
+    Compare dans un graphique le nombre de locaux éligibles à chaque technologie d'accès fixe au 2e trimestre
+    2026, et donne ceux de la fibre FttH et du cuivre.
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, visualisation, planificateur, relecteur]
+  sql_reference: |
+    SELECT sum(locaux_eligibles_ftth)::BIGINT AS ftth, sum(locaux_eligibles_cuivre)::BIGINT AS cuivre
+    FROM fixe_technologies WHERE trimestre = '2026_T2'
+  graphique: {type: bar, series: 1}
+
+- id: T13
+  categorie: sql_viz
+  question: >-
+    Montre la distribution du taux de pauvreté des communes pour lesquelles il est publié, et indique combien de
+    communes sont concernées.
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, visualisation, planificateur, relecteur]
+  sql_reference: |
+    SELECT count(*) AS communes FROM revenus_communes WHERE taux_pauvrete IS NOT NULL
+  graphique: {type: histogram}
+  piege: Une valeur masquée par le secret statistique n'est pas un zéro.
+
+- id: T14
+  categorie: sql_viz
+  question: >-
+    Trace l'évolution mensuelle du nombre total de sites 5G en France, tous opérateurs confondus, et donne le
+    total du dernier mois.
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, visualisation, planificateur, relecteur]
+  sql_reference: |
+    SELECT mois, sum(sites_5g_total)::BIGINT AS sites_5g FROM mobile_sites_5g_mensuel
+    WHERE niveau = 'france' GROUP BY mois ORDER BY mois
+  calcul_reference: |
+    df = resultats[0]
+    valeurs = {"sites_5g_dernier_mois": int(df.sites_5g.iat[-1])}
+  graphique: {type: line, series: 1}
+  piege: Additionner seulement le niveau national, pas les niveaux régionaux et départementaux.
+
+# ------------------------------------------------------------------------------------------- équipe complète
+
+- id: T15
+  categorie: equipe
+  question: >-
+    Les départements de métropole les plus pauvres ont-ils une part de locaux éligibles à la fibre FttH plus faible
+    au 2e trimestre 2026 ? Montre la relation et mesure-la par une corrélation de Spearman.
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, statistiques, visualisation, planificateur, relecteur]
+  sql_reference: |
+    SELECT t.code_geo, t.taux_pauvrete, 100.0 * sum(f.locaux_eligibles_ftth) / sum(f.nb_locaux) AS taux_ftth_pct
+    FROM fixe_technologies f JOIN communes c USING (code_insee)
+    JOIN revenus_territoires t ON t.niveau = 'departement' AND t.code_geo = c.dep_code
+    WHERE f.trimestre = '2026_T2' AND c.dep_code NOT LIKE '97%' GROUP BY t.code_geo, t.taux_pauvrete
+  calcul_reference: |
+    df = resultats[0]
+    valeurs = {"rho_spearman": round(stats.spearmanr(df.taux_pauvrete, df.taux_ftth_pct)[0], 3)}
+  tolerance_abs: 0.01
+  graphique: {type: scatter}
+  mentions: ['corr[ée]lation']
+
+- id: T16
+  categorie: equipe
+  question: >-
+    Lors de la campagne ARCEP 2025, le débit montant mesuré diffère-t-il selon le type de zone ? Montre les
+    distributions, donne la médiane par zone et teste la différence.
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, statistiques, visualisation, planificateur, relecteur]
+  sql_reference: |
+    SELECT zone, debit_montant_mbps FROM mobile_qos_mesures
+    WHERE protocole = 'UPLOAD' AND debit_montant_mbps IS NOT NULL
+  calcul_reference: |
+    groupes = {z: g.debit_montant_mbps for z, g in resultats[0].groupby("zone")}
+    h, p = stats.kruskal(*groupes.values())
+    valeurs = {f"mediane_{z}": round(g.median(), 1) for z, g in groupes.items()}
+    valeurs["p_valeur_inferieure_0_001"] = bool(p < 0.001)
+  graphique: {type: box, series: 4}
+  mentions: ['significati']
+
+- id: T17
+  categorie: equipe
+  question: >-
+    Le nombre de jours pendant lesquels une indisponibilité de site reste visible dans les relevés diffère-t-il
+    d'un opérateur de métropole à l'autre ? Montre les moyennes par opérateur et teste la différence.
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, statistiques, visualisation, planificateur, relecteur]
+  sql_reference: |
+    SELECT operateur, nb_jours_observes FROM mobile_pannes WHERE operateur_code IS NOT NULL
+  calcul_reference: |
+    groupes = {o: g.nb_jours_observes for o, g in resultats[0].groupby("operateur")}
+    h, p = stats.kruskal(*groupes.values())
+    valeurs = {f"moyenne_{o}": round(g.mean(), 2) for o, g in groupes.items()}
+    valeurs["p_valeur_inferieure_0_001"] = bool(p < 0.001)
+  graphique: {type: bar, series: 1}
+  mentions: ['significati']
+  interdits: ['meilleur opérateur']
+  piege: Comparaison d'opérateurs à garder factuelle ; les pratiques de déclaration diffèrent.
+
+# ------------------------------------------------------------------------------------------- plusieurs étapes
+
+- id: T18
+  categorie: multi_etapes
+  question: >-
+    Parmi les communes de métropole de plus de 20 000 habitants, laquelle a le plus faible taux d'éligibilité à la
+    fibre FttH au 2e trimestre 2026, et combien d'indisponibilités de sites mobiles y ont été relevées sur la
+    période couverte ?
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, sql, planificateur, relecteur]
+  sql_reference:
+    - |
+      SELECT c.code_insee, c.nom AS commune, round(100.0 * f.locaux_eligibles_ftth / f.nb_locaux, 1) AS taux_ftth_pct
+      FROM fixe_technologies f JOIN communes c USING (code_insee)
+      WHERE f.trimestre = '2026_T2' AND c.population > 20000 AND c.dep_code NOT LIKE '97%'
+      ORDER BY taux_ftth_pct LIMIT 1
+    - |
+      SELECT code_insee, count(*) AS indisponibilites FROM mobile_pannes GROUP BY code_insee
+  calcul_reference: |
+    top = resultats[0].iloc[0]
+    pannes = resultats[1].set_index("code_insee").indisponibilites.get(top.code_insee, 0)
+    valeurs = {"commune": top.commune, "taux_ftth_pct": float(top.taux_ftth_pct), "indisponibilites": int(pannes)}
+
+- id: T19
+  categorie: multi_etapes
+  question: >-
+    Quel département de métropole a le niveau de vie médian le plus élevé, et quelle part de ses locaux peut avoir
+    au moins 1 Gbit/s au 2e trimestre 2026 ?
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, sql, planificateur, relecteur]
+  sql_reference:
+    - |
+      SELECT t.code_geo AS dep_code, d.nom AS departement, t.niveau_vie_median
+      FROM revenus_territoires t JOIN departements d ON d.dep_code = t.code_geo
+      WHERE t.niveau = 'departement' ORDER BY t.niveau_vie_median DESC LIMIT 1
+    - |
+      SELECT c.dep_code, round(100.0 * sum(d.locaux_1g_ou_plus) / sum(d.nb_locaux), 1) AS taux_1g_pct
+      FROM fixe_debits d JOIN communes c USING (code_insee) WHERE d.trimestre = '2026_T2' GROUP BY c.dep_code
+  calcul_reference: |
+    top = resultats[0].iloc[0]
+    taux = resultats[1].set_index("dep_code").taux_1g_pct[top.dep_code]
+    valeurs = {"departement": top.departement, "niveau_vie_median": int(top.niveau_vie_median),
+               "taux_1g_pct": float(taux)}
+
+- id: T20
+  categorie: multi_etapes
+  question: >-
+    Combien de communes n'ont aucun site mobile déclaré sur leur territoire au 2e trimestre 2026, et quelle
+    population totale y vit ?
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, sql, planificateur, relecteur]
+  sql_reference:
+    - |
+      SELECT DISTINCT code_insee FROM mobile_sites WHERE trimestre = '2026_T2'
+    - |
+      SELECT code_insee, population FROM communes
+  calcul_reference: |
+    avec_site = set(resultats[0].code_insee)
+    sans = resultats[1][~resultats[1].code_insee.isin(avec_site)]
+    valeurs = {"communes": int(len(sans)), "population": int(sans.population.sum())}
+  piege: Une commune sans site sur son territoire n'est pas forcément sans couverture mobile.
+
+# ------------------------------------------------------------------------------------------- pièges
+
+- id: T21
+  categorie: piege_ambigu
+  question: Quel opérateur couvre le mieux la France ?
+  statut_attendu: clarification
+  parcours_attendu: [planificateur, relecteur]
+  mentions: ['site|qualit|couverture']
+  interdits: ['meilleur opérateur est']
+  piege: Nombre de sites, qualité mesurée ou couverture théorique ? Et sans désigner de "meilleur" opérateur.
+
+- id: T22
+  categorie: piege_impossible
+  question: Combien coûte le raccordement d'une commune rurale à la fibre ?
+  statut_attendu: impossible
+  parcours_attendu: [planificateur, relecteur]
+  mentions: ['co[uû]t']
+  interdits: ['\d+[,.]?\d*\s?(€|euros?)']
+  piege: Aucun coût de déploiement dans les données.
+
+- id: T23
+  categorie: piege_causal
+  question: Le déploiement de la fibre a-t-il fait baisser la pauvreté dans les départements ?
+  statut_attendu: impossible
+  parcours_attendu: [planificateur, relecteur]
+  mentions: ['ann[ée]e|évolution']
+  piege: Une seule année de revenus ; aucune évolution de la pauvreté ne peut être mesurée.
+
+- id: T24
+  categorie: piege_operateurs
+  question: >-
+    Selon les indicateurs officiels de la campagne ARCEP 2025, quel opérateur a le meilleur taux de communications
+    voix réussies en zones rurales (tous usages) ?
+  statut_attendu: repondu
+  parcours_attendu: [planificateur, sql, planificateur, relecteur]
+  sql_reference: |
+    SELECT operateur, round(100 * valeur, 1) AS taux_pct, round(100 * precision, 1) AS precision_pct
+    FROM mobile_qos_indicateurs
+    WHERE annee = 2025 AND strate = 'Zones rurales' AND situation = 'Tous usages' AND service = 'VOIX'
+      AND indicateur = 'Communications réussies' AND operateur <> 'Moyenne'
+    ORDER BY operateur
+  calcul_reference: |
+    df = resultats[0]
+    valeurs = {f"taux_{o}": v for o, v in zip(df.operateur, df.taux_pct)}
+  mentions: ['précision|intervalle|marge']
+  interdits: ['meilleur opérateur']
+  piege: Comparer avec la précision statistique publiée ; rester factuel.
