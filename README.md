@@ -7,7 +7,7 @@ questions sur les données ouvertes de l'ARCEP et de l'INSEE. Chaque action des 
 OpenTelemetry, convertie en journaux d'événements (XES, OCEL 2.0) et étudiée par process mining : variabilité d'une
 exécution à l'autre, facteurs qui l'influencent, prédiction d'échec en cours de run.
 
-Projet en construction. Étape actuelle : **jeu de questions** (étape 2 sur 11).
+Projet en construction. Étape actuelle : **outils des agents** (étape 3 sur 11).
 
 ## Données
 
@@ -77,6 +77,28 @@ python benchmark/build_references.py   # calcule les réponses de référence ->
 
 Les réponses de référence ne sont pas saisies à la main : elles sont calculées depuis la base et figées avec la
 version des données utilisée.
+
+## Outils des agents
+
+Chaque agent n'a accès qu'à ses outils, et chaque outil est verrouillé par notre code, pas par le prompt :
+
+- **Agent SQL** ([`relais/tools/sql.py`](relais/tools/sql.py)) : une seule requête de lecture à la fois. Deux
+  verrous indépendants : la requête est analysée avant exécution (sqlglot : une seule instruction, un SELECT, seules
+  les tables de la base, aucune fonction qui lit des fichiers ou l'environnement), et DuckDB lui-même travaille sur
+  une copie en mémoire avec `enable_external_access=false` et `lock_configuration=true`. Chaque requête a un délai
+  maximal ; son résultat complet est gardé pour les autres agents, le LLM n'en voit qu'un aperçu.
+- **Agent statistiques** ([`relais/tools/sandbox.py`](relais/tools/sandbox.py)) : le code Python s'exécute dans un
+  processus séparé (mode isolé, dossier vide, environnement réduit sans clé d'API) avec pandas, scipy et
+  statsmodels ; un hook d'audit bloque fichiers, réseau, sous-processus et ctypes, et le processus est arrêté au
+  bout du délai. Le résultat revient en JSON, jamais en pickle. Limite : ce hook protège des erreurs d'un LLM, ce
+  n'est pas une frontière de sécurité contre un attaquant déterminé (il faudrait un bac à sable du système, comme
+  un conteneur sans réseau).
+- **Agent visualisation** ([`relais/tools/charts.py`](relais/tools/charts.py)) : il écrit une spécification
+  (type, tableau, colonnes, titres) que notre code vérifie puis dessine avec Plotly : couleurs dans un ordre fixe
+  (palette vérifiée pour les daltoniens), un seul axe vertical, étiquettes directes jusqu'à 4 séries.
+
+Les tests essaient de contourner chaque verrou (COPY, ATTACH, read_csv, deux requêtes, lecture de la clé, ouverture
+de fichiers, réseau, boucle infinie...).
 
 ## Tests
 

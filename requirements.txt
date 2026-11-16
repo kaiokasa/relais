@@ -4,6 +4,7 @@ langgraph==1.2.20
 langchain-core==1.8.0
 langchain-google-genai==4.5.0
 duckdb==2.0.0
+sqlglot==30.31.0
 
 # Data and analysis
 pandas==3.0.1
