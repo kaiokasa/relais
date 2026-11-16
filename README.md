@@ -4,7 +4,8 @@
 
 Observabilité et process mining d'une équipe d'agents LLM qui analyse la connectivité en France (fixe et mobile).
 
-Une équipe multi-agent LangGraph (planificateur, agent SQL, agent statistiques, agent visualisation, relecteur)
+Une équipe multi-agent LangGraph (planificateur, interprète, agent SQL, agent statistiques, agent visualisation,
+relecteur)
 répond à des questions sur les données ouvertes de l'ARCEP et de l'INSEE. Chaque action des agents est journalisée
 avec OpenTelemetry (conventions GenAI), convertie en journaux d'événements XES et OCEL 2.0, puis étudiée par process
 mining : variabilité d'une exécution à l'autre, facteurs qui l'influencent, prédiction de l'échec en cours de run,
@@ -131,7 +132,7 @@ de fichiers, réseau, boucle infinie...).
 ## L'équipe
 
 ```
-planificateur -> (sql | statistiques | visualisation)* -> planificateur -> relecteur -> fin
+planificateur -> [interprète] -> (sql | statistiques | visualisation)* -> planificateur -> relecteur -> fin
                                                               ^              |
                                                               +-- à corriger +
 ```
@@ -141,6 +142,11 @@ planificateur -> (sql | statistiques | visualisation)* -> planificateur -> relec
   la réponse à partir de leurs résultats.
 - L'**agent SQL**, l'**agent statistiques** et l'**agent visualisation** n'ont chacun que leur outil (voir
   ci-dessus) et un nombre limité d'appels.
+- L'**interprète** n'est appelé que si le code repère un terme ambigu dans la question (« rural », « l'opérateur
+  historique », « les zones blanches », « récemment »...) : il traduit chaque terme en colonnes et valeurs exactes
+  de la base, les autres agents suivent sa lecture et la réponse la mentionne. Les simples variantes d'écriture
+  (« Free » pour « Free Mobile », casse, accents) sont corrigées sans LLM par l'outil SQL, qui signale aussi à
+  l'agent toute valeur introuvable avec les valeurs proches ([`relais/tools/values.py`](relais/tools/values.py)).
 - Le **relecteur** vérifie d'abord par du code que chaque nombre de la réponse vient d'un résultat (ou de la
   documentation des données) et qu'un graphique demandé a bien été dessiné, puis demande au LLM de contrôler le
   raisonnement (granularité, causalité, neutralité entre opérateurs). Une réponse refusée repart au planificateur,

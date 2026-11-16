@@ -27,7 +27,7 @@ from langgraph.graph import END, START, StateGraph
 from relais.llm import text_of, token_usage
 from relais.pricing import cost_usd
 from relais.schema import dictionary_rows
-from relais.team import prompts
+from relais.team import interprete, prompts
 from relais.team.numbers import AllowedNumbers, unsupported_numbers
 from relais.team.trace import Recorder
 from relais.telemetry import SpanBridge
@@ -37,7 +37,7 @@ from relais.tools.sql import QueryFailed, QueryRejected, SqlTool
 from relais.tools.values import ValueIndex
 
 WORKERS = ("sql", "statistiques", "visualisation")
-ROLES = ("planificateur", *WORKERS, "relecteur")
+ROLES = ("planificateur", "interprete", *WORKERS, "relecteur")
 MAX_ROUNDS = 3       # the first plan, then at most 2 requests for more steps
 MAX_STEPS = 8        # worker steps in a run
 MAX_REVIEWS = 2      # after 2 rejections the answer is given as it is, marked as not approved
@@ -56,6 +56,8 @@ class TeamState(TypedDict, total=False):
     retours: list         # the problems found by the reviewer
     reviews: int
     final: dict | None
+    interpretations: list  # the readings chosen by the interpreter for the ambiguous terms
+    interprete_fait: bool
 
 
 @dataclass
@@ -287,6 +289,9 @@ class Team:
                                                           feedback=feedback)
                     if not more_allowed:
                         request += "\nPlus aucune étape n'est possible : rédige la réponse avec ces résultats."
+                    if state.get("interpretations"):
+                        request += ("\nInterprétations retenues pour les termes ambigus (dis-le brièvement dans la "
+                                    "réponse) :\n" + interprete.as_text(state["interpretations"]))
                     messages = [SystemMessage(planner_system), HumanMessage(request)]
                 try:
                     decision = run.ask_json("planificateur", messages, check_plan)
@@ -315,13 +320,35 @@ class Team:
                 return {"index": state.get("index", 0) + 1, "phase": "rediger"}
             return node
 
+        def interpretations_text(state):
+            if not state.get("interpretations"):
+                return ""
+            return "\nInterprétations retenues (à suivre) :\n" + interprete.as_text(state["interpretations"])
+
         def sql_request(state, step):
             known = run.tables_description() if run.sql.tables else ""
             return (f"Question de l'utilisateur : {state['question']}\nTa consigne : {step['consigne']}"
-                    + (f"\nTableaux déjà obtenus :\n{known}" if known else ""))
+                    + interpretations_text(state) + (f"\nTableaux déjà obtenus :\n{known}" if known else ""))
 
         def other_request(state, step):
-            return f"Question de l'utilisateur : {state['question']}\nTa consigne : {step['consigne']}"
+            return (f"Question de l'utilisateur : {state['question']}\nTa consigne : {step['consigne']}"
+                    + interpretations_text(state))
+
+        def interpreter(state: TeamState):
+            terms = interprete.ambiguous_terms(state["question"])
+            listed = "\n".join(f"- « {term} » : {why}" for term, why in terms)
+            with run.recorder.span("interprete", "interpreter", termes=[t for t, _ in terms]) as event:
+                request = interprete.INTERPRETER_PROMPT.format(
+                    question=state["question"], plan=json.dumps(state.get("etapes", []), ensure_ascii=False),
+                    terms=listed)
+                try:
+                    readings = run.ask_json("interprete", [HumanMessage(request)], interprete.check_interpretation)
+                except ValueError as error:  # without an interpretation, the team goes on as before
+                    event.ok = False
+                    event.attributes["erreur"] = str(error)
+                    readings = []
+                event.attributes["interpretations"] = [f"{r['terme']} : {r['choix']}" for r in readings]
+            return {"interpretations": readings, "interprete_fait": True}
 
         sql_tool = StructuredTool.from_function(
             func=lambda requete: "", name="executer_sql",
@@ -378,7 +405,12 @@ class Team:
             index = state.get("index", 0)
             if state.get("brouillon") or index >= len(state.get("etapes", [])):
                 return "relecteur"  # (without a draft, the reviewer closes the run as a failure)
+            if not state.get("interprete_fait") and interprete.ambiguous_terms(state["question"]):
+                return "interprete"
             return state["etapes"][index]["agent"]
+
+        def after_interpreter(state: TeamState):
+            return state["etapes"][state.get("index", 0)]["agent"]
 
         def after_worker(state: TeamState):
             index = state.get("index", 0)
@@ -397,8 +429,10 @@ class Team:
             "visualisation", other_request, lambda: prompts.VIZ_PROMPT.format(tables=run.tables_description()),
             chart_tool, run.make_chart))
         graph.add_node("relecteur", relecteur)
+        graph.add_node("interprete", interpreter)
         graph.add_edge(START, "planificateur")
-        graph.add_conditional_edges("planificateur", after_planner, ["relecteur", *WORKERS])
+        graph.add_conditional_edges("planificateur", after_planner, ["relecteur", "interprete", *WORKERS])
+        graph.add_conditional_edges("interprete", after_interpreter, list(WORKERS))
         for role in WORKERS:
             graph.add_conditional_edges(role, after_worker, ["planificateur", *WORKERS])
         graph.add_conditional_edges("relecteur", after_review, ["planificateur", END])

@@ -9,7 +9,7 @@ from collections import Counter
 import numpy as np
 import pandas as pd
 
-AGENT_ORDER = ["planificateur", "sql", "statistiques", "visualisation", "relecteur"]
+AGENT_ORDER = ["planificateur", "interprete", "sql", "statistiques", "visualisation", "relecteur"]
 
 
 def as_pm4py(frame):
@@ -18,14 +18,19 @@ def as_pm4py(frame):
                                   timestamp_key="time:timestamp")
 
 
-def reference_frame(questions):
-    """The expected paths as an event log: one trace per question."""
+def reference_frame(questions, optional_interpreter=True):
+    """The expected paths as an event log: one trace per question. The interpreter, called only for ambiguous
+    terms, is an optional step right after the first plan: each path with workers is also given with it."""
     rows = []
     base = pd.Timestamp("2026-01-01", tz="UTC")
     for q in questions:
-        for i, agent in enumerate(q.parcours_attendu):
-            rows.append({"case:concept:name": q.id, "concept:name": agent,
-                         "time:timestamp": base + pd.Timedelta(seconds=i)})
+        paths = [(q.id, list(q.parcours_attendu))]
+        if optional_interpreter and len(q.parcours_attendu) > 2:
+            paths.append((f"{q.id}+interprete", [q.parcours_attendu[0], "interprete", *q.parcours_attendu[1:]]))
+        for case, path in paths:
+            for i, agent in enumerate(path):
+                rows.append({"case:concept:name": case, "concept:name": agent,
+                             "time:timestamp": base + pd.Timedelta(seconds=i)})
     return pd.DataFrame(rows)
 
 
@@ -102,7 +107,7 @@ def handover(frame):
 
 # ------------------------------------------------------------------------------------------- figures
 
-POSITIONS = {"début": (0.0, 0.8), "planificateur": (1.3, 0.8), "sql": (3.0, 0.95), "statistiques": (3.6, 0.55),
+POSITIONS = {"début": (0.0, 0.8), "planificateur": (1.3, 0.8), "interprete": (2.15, 0.55), "sql": (3.0, 0.95), "statistiques": (3.6, 0.55),
              "visualisation": (3.0, 0.15), "relecteur": (1.3, 0.15), "fin": (0.0, 0.15)}
 
 

@@ -56,7 +56,7 @@ def team_with(con, **roles):
     """A team whose roles not given would fail the test if they were called."""
     unused = scripted()  # an empty script: calling it raises
     return Team({role: roles.get(role, unused) for role in
-                 ("planificateur", "sql", "statistiques", "visualisation", "relecteur")}, con)
+                 ("planificateur", "interprete", "sql", "statistiques", "visualisation", "relecteur")}, con)
 
 
 def test_sql_question_goes_planner_sql_planner_reviewer(con):

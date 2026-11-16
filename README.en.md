@@ -4,7 +4,8 @@
 
 Observability and process mining of a team of LLM agents that analyses connectivity in France (fixed and mobile).
 
-A LangGraph multi-agent team (planner, SQL agent, statistics agent, visualisation agent, reviewer) answers questions
+A LangGraph multi-agent team (planner, interpreter, SQL agent, statistics agent, visualisation agent, reviewer)
+answers questions
 on open data from ARCEP (the French telecom regulator) and INSEE (the national statistics institute). Every action
 of the agents is traced with OpenTelemetry (GenAI semantic conventions), converted into XES and OCEL 2.0 event logs
 and studied with process mining: how behaviour varies from one run to the next, which parameters drive it,
@@ -71,6 +72,10 @@ database, not typed by hand.
   mistakes; it is not a security boundary against a determined attacker.
 - **Visualisation agent**: writes a chart specification that our code checks and draws with Plotly.
 - **Planner**: no tool; splits the question into steps, asks for clarification or declines, then writes the answer.
+- **Interpreter**: called only when code finds an ambiguous term in the question ("rural", "the incumbent
+  operator", "recently"...): it maps each term to exact columns and values, the other agents follow it and the
+  answer states it. Spelling variants ("Free" for "Free Mobile", case, accents) are fixed without an LLM by the
+  SQL tool, which also reports any value that matches nothing, with the closest ones.
 - **Reviewer**: checks with code that every number of the answer comes from a result, then asks the LLM about the
   reasoning (granularity, causality, neutrality); a rejected answer goes back to the planner, twice at most.
 
