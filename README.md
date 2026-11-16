@@ -306,9 +306,18 @@ complète, en validation croisée groupée par question (774 runs). Le modèle e
 streamlit run app/dashboard.py
 ```
 
-- **En direct** : on pose une question ; le graphe de l'équipe s'anime (agent actif, passations, transitions hors
+- **Conversation** : on pose une question comme dans un assistant de discussion ; la réponse arrive avec son
+  graphique, ses requêtes SQL et ses **sources** (producteur, jeu de données, licence, date de téléchargement).
+  Les sources sont déduites par le code des tables réellement lues, jamais écrites par le modèle
+  ([`relais/sources.py`](relais/sources.py)). Mode sombre et mode clair beige.
+- **Plusieurs personnes à la fois** : une question part dans une file partagée et tourne en arrière-plan
+  (au plus 4 runs en même temps, 3 questions en attente par personne) ; la page Supervision liste
+  les runs de tous, rafraîchie chaque seconde ([`relais/jobs.py`](relais/jobs.py)), et permet de lancer un run
+  avec les réglages de l'expérience (modèle, température, instructions du planificateur).
+- **Observabilité d'un run** (dépliable sous chaque réponse) : cartes durée, coût, tokens
+  et risque ; cascade des spans ; le graphe de l'équipe s'anime (agent actif, passations, transitions hors
   du modèle de référence en orange), les alertes s'affichent (déviation, échec d'outil, refus du relecteur, étape
-  lente) et la jauge de risque d'échec évolue à chaque événement ; puis la réponse, le graphique, les requêtes.
+  lente) et la jauge de risque d'échec évolue à chaque événement ; puis la réponse, le graphique, les sources, les requêtes.
 - **Rejouer un run** : la même vue sur un run enregistré, sans clé d'API.
 - Les rapports de l'expérience, du process mining, de la prédiction et de la conversion.
 

@@ -139,7 +139,13 @@ question), a gradient boosting model predicts a wrong answer: AUC 0.56 after the
 streamlit run app/dashboard.py
 ```
 
-Live mode: ask a question and watch the team graph (active agent, handovers, transitions outside the reference model
+Conversation: ask a question as in a chat assistant; the answer comes with its chart, SQL queries and
+sources (producer, dataset, licence, download date), derived by code from the tables actually read, never written
+by the model. Dark mode and a light beige mode. Several people at once: a question goes into a shared queue and
+runs in the background (at most 4 runs at once, 3 waiting questions per person); the Supervision page lists
+everyone's runs, refreshed every second, and launches runs with the experiment settings. Run observability
+(expandable under each answer): duration, cost, tokens and risk cards,
+span waterfall, and watch the team graph (active agent, handovers, transitions outside the reference model
 in orange), alerts (deviation, tool failure, reviewer rejection, slow step) and the failure-risk gauge updated at
 every event. Replay mode: the same view on a recorded run, without an API key.
 

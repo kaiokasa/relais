@@ -1,8 +1,33 @@
+# Two modes: Streamlit follows the system setting, and the menu (Settings > Theme) switches between them.
+
 [theme]
-base = "dark"
-primaryColor = "#3987e5"
-backgroundColor = "#111110"
-secondaryBackgroundColor = "#1a1a19"
-textColor = "#f0efec"
-borderColor = "#2c2c2a"
-font = "sans serif"
+primaryColor = "#b65532"
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+headingFont = "Source Serif 4:https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap"
+codeFont = "JetBrains Mono:https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+baseRadius = "0.75rem"
+showSidebarBorder = false
+
+[theme.light]
+backgroundColor = "#f4efe6"
+secondaryBackgroundColor = "#ebe4d6"
+textColor = "#1f1e1d"
+borderColor = "#ddd3c2"
+linkColor = "#a5452a"
+
+[theme.light.sidebar]
+backgroundColor = "#ece5d8"
+secondaryBackgroundColor = "#e3dbcb"
+borderColor = "#d6ccb9"
+
+[theme.dark]
+backgroundColor = "#262624"
+secondaryBackgroundColor = "#30302e"
+textColor = "#f5f4ef"
+borderColor = "#3e3e38"
+linkColor = "#e39a7f"
+
+[theme.dark.sidebar]
+backgroundColor = "#1f1e1d"
+secondaryBackgroundColor = "#2a2927"
+borderColor = "#34332f"

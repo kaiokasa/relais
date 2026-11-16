@@ -147,8 +147,9 @@ def test_dashboard_starts_without_data_or_key(monkeypatch, tmp_path):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     app = AppTest.from_file("app/dashboard.py", default_timeout=60).run()
     assert not app.exception
-    assert any("RELAIS" in m.value for m in app.sidebar.markdown)
-    assert any("Observer une équipe d'agents" in m.value for m in app.markdown)
+    assert any("relais-greeting" in m.value for m in app.markdown)  # the conversation page opens first
+    assert {"Nouvelle conversation", "Une question ambiguë"} <= {b.label for b in app.button}
+    assert len(app.chat_input) == 1
 
 
 def test_console_figures():

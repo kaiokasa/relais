@@ -20,7 +20,7 @@ PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6
 SURFACE, INK, INK_2, MUTED, GRID, AXIS = "#fcfcfb", "#0b0b0b", "#52514e", "#898781", "#e1e0d9", "#c3c2b7"
 # the same eight hues stepped for a dark surface (validated palette, dark mode), and the dark chart chrome
 PALETTE_DARK = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#0ca30c", "#9085e9", "#e66767"]
-SURFACE_DARK, INK_DARK, INK_2_DARK, GRID_DARK, AXIS_DARK = "#1a1a19", "#f0efec", "#c3c2b7", "#2c2c2a", "#383835"
+SURFACE_DARK, INK_DARK, INK_2_DARK, GRID_DARK, AXIS_DARK = "#262624", "#f5f4ef", "#c2c0b6", "#3a3936", "#4a4945"
 MAX_SERIES = len(PALETTE)
 MAX_CATEGORIES = 60
 MAX_POINTS = 100_000
@@ -229,3 +229,29 @@ def to_dark(figure):
         if annotation.bgcolor:
             annotation.bgcolor = _dark(annotation.bgcolor)
     return figure
+
+
+BEIGE_COLOURS = {SURFACE: "#f4efe6", GRID: "#e2d9c8", AXIS: "#cfc4b0", MUTED: "#68635a"}
+
+
+def to_beige(figure):
+    """The same figure for the light beige interface: transparent background, beige surface for labels and node
+    rings, warmer grid."""
+    figure.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+    figure.update_xaxes(gridcolor=BEIGE_COLOURS[GRID], linecolor=BEIGE_COLOURS[AXIS])
+    figure.update_yaxes(gridcolor=BEIGE_COLOURS[GRID], linecolor=BEIGE_COLOURS[AXIS])
+    for trace in figure.data:
+        marker = getattr(trace, "marker", None)
+        if marker is not None and getattr(marker, "line", None) is not None and marker.line.color == SURFACE:
+            marker.line.color = BEIGE_COLOURS[SURFACE]
+    for annotation in figure.layout.annotations:
+        if annotation.bgcolor == SURFACE:
+            annotation.bgcolor = BEIGE_COLOURS[SURFACE]
+    return figure
+
+
+def apply_theme(figure, mode):
+    """Dark or light (beige) version of a figure drawn with the light defaults (on a copy: the original figure
+    can still be shown in the other mode)."""
+    figure = go.Figure(figure)
+    return to_dark(figure) if mode == "dark" else to_beige(figure)
