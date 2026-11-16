@@ -183,7 +183,7 @@ TABLES = {
             "niveau": "Niveau géographique : france, zone, region ou departement",
             "code_geo": "Code de la zone (FRNAT pour la France, code région ou département)",
             "nom_geo": "Nom de la zone",
-            "operateur": "Nom de l'opérateur",
+            "operateur": "Nom de l'opérateur (en métropole : Bouygues Telecom, Free Mobile, Orange, SFR)",
             "mois": "Dernier jour du mois",
             "sites_5g_700mhz": "Sites 5G dans la bande 700 MHz",
             "sites_5g_2100mhz": "Sites 5G dans la bande 2100 MHz",
@@ -209,7 +209,8 @@ TABLES = {
             "situation": "Situation de mesure (Indoor, Outdoor, Tous usages, Incar, Intrain)",
             "service": "Service mesuré (DOWNLOAD, UPLOAD, WEB, VIDEO, VOIX, SMS...)",
             "indicateur": "Nom de l'indicateur, tel que publié par l'ARCEP",
-            "operateur": "Nom de l'opérateur, ou 'Moyenne' pour la moyenne publiée des 4 opérateurs",
+            "operateur": "Nom de l'opérateur (Bouygues Telecom, Free Mobile, Orange, SFR), ou 'Moyenne' pour la "
+                         "moyenne publiée des 4 opérateurs",
             "operateur_code": "Code de l'opérateur (vide pour la moyenne)",
             "valeur": "Valeur de l'indicateur (taux entre 0 et 1, débit en Mbit/s...)",
             "precision": "Précision statistique de la valeur",
@@ -258,7 +259,7 @@ TABLES = {
         "cle": "incident_id",
         "colonnes": {
             "incident_id": "Identifiant technique de l'incident",
-            "operateur": "Nom de l'opérateur tel que publié",
+            "operateur": "Nom de l'opérateur : Bouygues Telecom, Free Mobile, Orange ou SFR",
             "operateur_code": "Code de l'opérateur (métropole)",
             "id_station_anfr": "Identifiant ANFR de la station touchée",
             "code_insee": "Commune de la station",

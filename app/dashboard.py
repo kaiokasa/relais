@@ -22,7 +22,7 @@ from relais.prediction import MODEL_FILE, MODELS, RiskModel  # noqa: E402
 from relais.team.graph import Team  # noqa: E402
 from relais.team.prompts import PLANNER_PROMPTS  # noqa: E402
 from relais.team.trace import Event  # noqa: E402
-from relais.tools.charts import INK_2, PALETTE, SURFACE  # noqa: E402
+from relais.tools.charts import INK, INK_2, PALETTE, SURFACE  # noqa: E402
 from relais.tools.sql import DB_PATH, open_locked_copy  # noqa: E402
 
 st.set_page_config(page_title="Relais", layout="wide")
@@ -62,7 +62,8 @@ def risk_gauge(risk):
                "steps": [{"range": [0, 30], "color": "#e1e0d9"}, {"range": [30, 60], "color": "#f5d9a8"},
                          {"range": [60, 100], "color": "#f2b8a6"}]},
         title={"text": "Risque de réponse fausse", "font": {"size": 15}}))
-    figure.update_layout(height=230, margin={"l": 20, "r": 20, "t": 50, "b": 0}, paper_bgcolor=SURFACE)
+    figure.update_layout(height=230, margin={"l": 20, "r": 20, "t": 50, "b": 0}, paper_bgcolor=SURFACE,
+                         font={"color": INK})
     return figure
 
 
@@ -70,6 +71,7 @@ def risk_curve(risks):
     figure = go.Figure(go.Scatter(x=[k for k, _ in risks], y=[100 * r for _, r in risks], mode="lines",
                                   line={"color": PALETTE[0], "width": 2}))
     figure.update_layout(height=170, margin={"l": 40, "r": 10, "t": 10, "b": 30}, paper_bgcolor=SURFACE,
+                         font={"color": INK_2},
                          plot_bgcolor=SURFACE, yaxis={"range": [0, 100], "title": "%", "gridcolor": "#e1e0d9"},
                          xaxis={"title": "événements terminés"})
     return figure
@@ -85,13 +87,13 @@ def events_table(events):
 
 def draw(snapshot, slots, show_risk):
     slots["graph"].plotly_chart(graph_figure(snapshot["edges"], "L'équipe en action", highlight=snapshot["active"],
-                                             reference=reference()), width="stretch",
+                                             reference=reference()), width="stretch", theme=None,
                                 key=f"g{time.time()}")
     if show_risk:
         risk = snapshot["risks"][-1][1] if snapshot["risks"] else None
-        slots["gauge"].plotly_chart(risk_gauge(risk), width="stretch", key=f"r{time.time()}")
+        slots["gauge"].plotly_chart(risk_gauge(risk), width="stretch", theme=None, key=f"r{time.time()}")
         if len(snapshot["risks"]) > 1:
-            slots["curve"].plotly_chart(risk_curve(snapshot["risks"]), width="stretch",
+            slots["curve"].plotly_chart(risk_curve(snapshot["risks"]), width="stretch", theme=None,
                                         key=f"c{time.time()}")
     with slots["alerts"].container():
         st.markdown("**Alertes**")
@@ -118,7 +120,7 @@ def show_answer(answer):
               "echec": "Échec"}.get(answer.statut, answer.statut)
     st.markdown(f"**{status}{'' if answer.approuve else ' (non approuvée par le relecteur)'}** : {answer.reponse}")
     if answer.graphique:
-        st.plotly_chart(answer.graphique.figure, width="stretch")
+        st.plotly_chart(answer.graphique.figure, width="stretch", theme=None)
         table = answer.tables.get(answer.graphique.spec.get("tableau"))
         if table is not None:
             with st.expander("Données du graphique"):

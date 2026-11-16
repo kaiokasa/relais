@@ -514,7 +514,9 @@ def build_outages(geo, report):
     last_day = daily.jour.max()
     incidents = pd.DataFrame({
         "incident_id": pd.RangeIndex(1, len(incidents) + 1),
-        "operateur": incidents.operateur.astype("string"),
+        # the outage files write "Free" where every other table writes "Free Mobile": one name per operator
+        "operateur": incidents.operateur.str.lower().map(METRO_OPERATORS).map(METRO_NAMES)
+                     .fillna(incidents.operateur).astype("string"),
         "operateur_code": incidents.operateur.str.lower().map(METRO_OPERATORS).astype("string"),
         "id_station_anfr": incidents.station_anfr.astype("string"),
         "code_insee": geo.apply(incidents.code_insee),

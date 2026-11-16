@@ -34,6 +34,7 @@ from relais.telemetry import SpanBridge
 from relais.tools.charts import ChartError, render
 from relais.tools.sandbox import run_python
 from relais.tools.sql import QueryFailed, QueryRejected, SqlTool
+from relais.tools.values import ValueIndex
 
 WORKERS = ("sql", "statistiques", "visualisation")
 ROLES = ("planificateur", *WORKERS, "relecteur")
@@ -122,7 +123,7 @@ class Run:
 
     def __init__(self, team, question, bridge=None, listeners=()):
         self.team, self.question = team, question
-        self.sql = SqlTool(team.con, timeout_s=team.sql_timeout_s)
+        self.sql = SqlTool(team.con, timeout_s=team.sql_timeout_s, values=team.values)
         self.charts, self.stats, self.reports = [], [], []
         self.recorder = Recorder(bridge, listeners)
         self.usage = []
@@ -186,6 +187,10 @@ class Run:
                 event.attributes["erreur"] = str(error)
                 return f"Requête refusée ou en échec : {error}"
             event.attributes.update(tableau=table.id, lignes=len(table.data), duree_sql_ms=round(table.elapsed_ms, 1))
+            if table.corrections:
+                event.attributes["valeurs_corrigees"] = table.corrections
+            if table.unknown_values:
+                event.attributes["valeurs_inconnues"] = table.unknown_values
             return table.preview()
 
     def tables_description(self):
@@ -261,6 +266,7 @@ class Team:
         if planner_prompt not in prompts.PLANNER_PROMPTS:
             raise ValueError(f"unknown planner prompt {planner_prompt}")
         self.con, self.planner_prompt = con, planner_prompt
+        self.values = ValueIndex.from_connection(con)  # synonyms and exact values for the SQL tool
         self.sql_timeout_s, self.python_timeout_s = sql_timeout_s, python_timeout_s
 
     def build_graph(self, run):

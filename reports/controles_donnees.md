@@ -36,7 +36,7 @@ Mesures : 3 471 lignes (0.60%) avec un code commune hors géographie 2026, gard�
 68 658 lignes quotidiennes sans date de début (Orange 63 219, SFR 5 439) : regroupées en 13 567 incidents par suite de jours consécutifs (écart d'au plus 2 jours), début laissé vide.
 262 incidents débutés plus d'un an avant leur premier relevé (pannes de longue durée encore déclarées en cours).
 Pannes : tous les codes commune existent dans la géographie 2026.
-Opérateurs : Orange 69101, SFR 28119, Free 27422, Bouygues Telecom 23325.
+Opérateurs : Orange 69101, SFR 28119, Free Mobile 27422, Bouygues Telecom 23325.
 
 ## Qualité des réseaux fibre (ARCEP)
 
@@ -74,4 +74,4 @@ Territoires : 112 lignes ; France métropolitaine : niveau de vie médian 25 920
 | sources | 491 | un fichier téléchargé |
 | dictionnaire | 204 | une ligne par colonne (et une par table, colonne vide) |
 
-connectivite.duckdb : 72 Mo, construite en 99 s.
+connectivite.duckdb : 72 Mo, construite en 92 s.

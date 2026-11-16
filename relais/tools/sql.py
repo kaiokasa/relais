@@ -50,12 +50,17 @@ class ResultTable:
     data: pd.DataFrame
     elapsed_ms: float
     truncated: bool = False
+    corrections: list = field(default_factory=list)   # values replaced by the exact ones of the data
+    unknown_values: list = field(default_factory=list)  # values that match nothing in their column
 
     def preview(self, rows=PREVIEW_ROWS):
-        """What the LLM sees: size, columns and the first rows."""
+        """What the LLM sees: size, columns, the first rows, and the corrected or unknown values."""
         shown = self.data.head(rows).to_string(index=False, max_colwidth=40)
         more = f"\n... {len(self.data) - rows} lignes de plus" if len(self.data) > rows else ""
-        return f"Tableau {self.id} : {len(self.data)} lignes, colonnes {list(self.data.columns)}\n{shown}{more}"
+        notes = "".join(f"\nValeur corrigée : {c}." for c in self.corrections)
+        notes += "".join(f"\nAttention : {u}. Corrige la requête." for u in self.unknown_values)
+        return (f"Tableau {self.id} : {len(self.data)} lignes, colonnes {list(self.data.columns)}\n{shown}{more}"
+                + notes)
 
 
 def function_names(tree):
@@ -116,6 +121,7 @@ class SqlTool:
     con: duckdb.DuckDBPyConnection
     timeout_s: float = DEFAULT_TIMEOUT_S
     tables: dict = field(default_factory=dict)
+    values: object = None  # a relais.tools.values.ValueIndex: literals are harmonised with the data
 
     def __post_init__(self):
         rows = self.con.execute("SELECT table_name FROM information_schema.tables").fetchall()
@@ -124,11 +130,16 @@ class SqlTool:
 
     @classmethod
     def open(cls, path=DB_PATH, **kwargs):
-        return cls(open_locked_copy(path), **kwargs)
+        from relais.tools.values import ValueIndex
+        con = open_locked_copy(path)
+        return cls(con, values=kwargs.pop("values", None) or ValueIndex.from_connection(con), **kwargs)
 
     def run(self, sql):
         """Run one SELECT; returns a ResultTable (QueryRejected / QueryFailed otherwise)."""
-        check_query(sql, self.known_tables)
+        tree = check_query(sql, self.known_tables)
+        corrections, unknown = self.values.harmonise(tree) if self.values is not None else ([], [])
+        if corrections:
+            sql = tree.sql(dialect="duckdb")
         timer = threading.Timer(self.timeout_s, self.con.interrupt)
         started = time.perf_counter()
         timer.start()
@@ -143,7 +154,7 @@ class SqlTool:
         finally:
             timer.cancel()
         elapsed = (time.perf_counter() - started) * 1000
-        table = ResultTable(f"t{next(self._ids)}", sql, data.head(MAX_ROWS), elapsed, truncated)
+        table = ResultTable(f"t{next(self._ids)}", sql, data.head(MAX_ROWS), elapsed, truncated, corrections, unknown)
         self.tables[table.id] = table
         return table
 
