@@ -25,6 +25,7 @@ from relais.benchmark import CATEGORIES, LOTS, load_questions  # noqa: E402
 from relais.evaluation import evaluate  # noqa: E402
 from relais.llm import chat_model, model_name  # noqa: E402
 from relais.team.graph import Team  # noqa: E402
+from relais.telemetry import make_tracer  # noqa: E402
 from relais.tools.sql import open_locked_copy  # noqa: E402
 
 RUNS = ROOT / "runs"
@@ -40,12 +41,14 @@ def chart_record(chart):
                                        "spec": chart.spec}
 
 
-def run_one(team, question, references, config, repetition):
+def run_one(team, question, references, config, repetition, tracer=None):
     started = time.time()
     record = {"question_id": question.id, "categorie": question.categorie, "question": question.question,
               "repetition": repetition, "config": config, "date": dt.datetime.now().isoformat(timespec="seconds")}
     try:
-        answer = team.ask(question.question)
+        answer = team.ask(question.question, tracer=tracer, run_attributes={
+            "relais.question_id": question.id, "relais.categorie": question.categorie,
+            "relais.repetition": repetition, "relais.lot": config.get("lot", "dev")})
     except Exception as error:  # an API error must not stop the benchmark: the run is recorded as failed
         record.update(statut="erreur", reponse="", erreur=f"{type(error).__name__}: {error}",
                       trace_python=traceback.format_exc()[-3000:], latence_s=time.time() - started, path=[],
@@ -54,7 +57,7 @@ def run_one(team, question, references, config, repetition):
     chart = chart_record(answer.graphique)
     tokens_in, tokens_out = answer.tokens
     record.update(
-        statut=answer.statut, reponse=answer.reponse, approuve=answer.approuve, problemes=answer.problemes,
+        run_id=answer.run_id, statut=answer.statut, reponse=answer.reponse, approuve=answer.approuve, problemes=answer.problemes,
         path=answer.path, etapes=answer.etapes, graphique=chart, latence_s=round(answer.latence_s, 2),
         input_tokens=tokens_in, output_tokens=tokens_out, cout_usd=answer.cout_usd, usage=answer.usage,
         requetes=[{"id": t.id, "sql": t.sql, "lignes": len(t.data)} for t in answer.tables.values()],
@@ -117,11 +120,12 @@ def main():
     folder = RUNS / name
     folder.mkdir(parents=True, exist_ok=True)
     team = Team(chat_model(args.modele, args.temperature), con, planner_prompt=args.prompt)
+    tracer = make_tracer(path=folder / "traces.jsonl")  # OpenTelemetry spans, one JSON line each
 
     rows = []
     for repetition in range(1, args.repetitions + 1):
         for question in questions:
-            record = run_one(team, question, references, config, repetition)
+            record = run_one(team, question, references, config, repetition, tracer)
             (folder / f"{question.id}_{repetition}.json").write_text(
                 json.dumps(record, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
             rows.append(summary_row(record))

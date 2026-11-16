@@ -6,7 +6,10 @@ langchain-google-genai==4.5.0
 duckdb==2.0.0
 sqlglot==30.31.0
 
-# Data and analysis
+# Observability
+opentelemetry-sdk==1.45.2
+
+# Data, analysis, process mining, prediction
 pandas==3.0.1
 numpy==2.4.6
 openpyxl==3.1.5
@@ -14,10 +17,13 @@ PyYAML==6.0.2
 scipy==1.17.1
 statsmodels==0.15.0
 pm4py==2.7.23.12
+scikit-learn==1.8.0
+joblib==1.5.3
 
-# App
+# App and figures (kaleido: PNG export of the report figures)
 plotly==6.6.0
 streamlit==1.56.0
+kaleido==1.5.0
 
 # Tests (python -m pytest)
 pytest

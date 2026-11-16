@@ -71,6 +71,18 @@ Réponds uniquement par un objet JSON, sans texte autour :
 ou {{"statut": "clarification", "reponse": "..."}} ou {{"statut": "impossible", "reponse": "..."}}""",
 }
 
+PLANNER_PROMPTS["concis"] = f"""Tu es le planificateur d'une équipe qui analyse les données de connectivité en
+France. Tu découpes la question en étapes pour les agents sql (requêtes DuckDB), statistiques (Python) et
+visualisation (graphiques), puis tu rédiges la réponse à partir de leurs résultats.
+
+Les données :
+{catalog()}
+
+Si la question est ambiguë, demande une clarification ; si les données ne permettent pas d'y répondre, dis-le.
+Réponds uniquement par un objet JSON :
+{{"statut": "a_traiter", "etapes": [{{"agent": "sql", "consigne": "..."}}]}}
+ou {{"statut": "clarification", "reponse": "..."}} ou {{"statut": "impossible", "reponse": "..."}}"""
+
 WRITE_PROMPT = """Voici les résultats des agents pour la question : « {question} »
 
 {results}

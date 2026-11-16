@@ -16,6 +16,7 @@ Every turn, LLM call and tool call is recorded (relais/team/trace.py).
 import json
 import re
 import time
+import uuid
 from dataclasses import dataclass, field
 from typing import TypedDict
 
@@ -29,6 +30,7 @@ from relais.schema import dictionary_rows
 from relais.team import prompts
 from relais.team.numbers import AllowedNumbers, unsupported_numbers
 from relais.team.trace import Recorder
+from relais.telemetry import SpanBridge
 from relais.tools.charts import ChartError, render
 from relais.tools.sandbox import run_python
 from relais.tools.sql import QueryFailed, QueryRejected, SqlTool
@@ -70,6 +72,7 @@ class TeamAnswer:
     usage: list
     latence_s: float
     etapes: list = field(default_factory=list)
+    run_id: str = ""
 
     @property
     def tokens(self):
@@ -117,11 +120,11 @@ def model_name(llm):
 class Run:
     """Everything one question needs: the tools, what the agents produced, the trace."""
 
-    def __init__(self, team, question):
+    def __init__(self, team, question, bridge=None, listeners=()):
         self.team, self.question = team, question
         self.sql = SqlTool(team.con, timeout_s=team.sql_timeout_s)
         self.charts, self.stats, self.reports = [], [], []
-        self.recorder = Recorder()
+        self.recorder = Recorder(bridge, listeners)
         self.usage = []
 
     # ------------------------------------------------------------------------------------------ LLM calls
@@ -395,19 +398,38 @@ class Team:
         graph.add_conditional_edges("relecteur", after_review, ["planificateur", END])
         return graph.compile()
 
-    def ask(self, question):
-        """Run the team on one question; returns a TeamAnswer with the answer, the trace and the costs."""
-        run = Run(self, question)
+    def ask(self, question, tracer=None, run_attributes=None, listeners=()):
+        """Run the team on one question; returns a TeamAnswer with the answer, the trace and the costs.
+
+        With an OpenTelemetry tracer, the run is also traced (one root span, one span per event); listeners are
+        called with ("debut" | "fin", event) while the run goes on."""
+        run_id = uuid.uuid4().hex
+        bridge = None
+        if tracer is not None:
+            planner = self.llms["planificateur"]
+            bridge = SpanBridge(tracer, {"gen_ai.conversation.id": run_id, "relais.question": question,
+                                         "gen_ai.request.model": model_name(planner),
+                                         "gen_ai.request.temperature": getattr(planner, "temperature", None),
+                                         "relais.planner_prompt": self.planner_prompt, **(run_attributes or {})})
+        run = Run(self, question, bridge, listeners)
         started = time.time()
-        state = self.build_graph(run).invoke({"question": question, "phase": "planifier", "etapes": [], "index": 0,
-                                              "rounds": 0, "reviews": 0, "retours": []},
-                                             {"recursion_limit": 80})
-        final = state.get("final") or {"statut": "echec", "reponse": "", "approuve": False, "problemes": []}
+        final = {"statut": "echec", "reponse": "", "approuve": False, "problemes": []}
+        try:
+            state = self.build_graph(run).invoke({"question": question, "phase": "planifier", "etapes": [],
+                                                  "index": 0, "rounds": 0, "reviews": 0, "retours": []},
+                                                 {"recursion_limit": 80})
+            final = state.get("final") or final
+        finally:
+            if bridge:
+                tokens_in = sum(u["input_tokens"] for u in run.usage)
+                tokens_out = sum(u["output_tokens"] for u in run.usage)
+                bridge.finish(**{"relais.answer.status": final["statut"], "relais.answer.approved": final["approuve"],
+                                 "gen_ai.usage.input_tokens": tokens_in, "gen_ai.usage.output_tokens": tokens_out})
         return TeamAnswer(
             question=question, statut=final["statut"], reponse=final["reponse"], approuve=final["approuve"],
             problemes=final["problemes"], path=run.recorder.path(), graphique=run.charts[-1] if run.charts else None,
             tables=dict(run.sql.tables), statistiques=run.stats, events=run.recorder.events, usage=run.usage,
-            latence_s=time.time() - started, etapes=state.get("etapes", []))
+            latence_s=time.time() - started, etapes=state.get("etapes", []), run_id=run_id)
 
 
 def check_verdict(decision):

@@ -1,13 +1,35 @@
 # Relais
 
+*[English version](README.en.md)*
+
 Observabilité et process mining d'une équipe d'agents LLM qui analyse la connectivité en France (fixe et mobile).
 
-Une équipe multi-agent (planificateur, agent SQL, agent statistiques, agent visualisation, relecteur) répond à des
-questions sur les données ouvertes de l'ARCEP et de l'INSEE. Chaque action des agents est journalisée avec
-OpenTelemetry, convertie en journaux d'événements (XES, OCEL 2.0) et étudiée par process mining : variabilité d'une
-exécution à l'autre, facteurs qui l'influencent, prédiction d'échec en cours de run.
+Une équipe multi-agent LangGraph (planificateur, agent SQL, agent statistiques, agent visualisation, relecteur)
+répond à des questions sur les données ouvertes de l'ARCEP et de l'INSEE. Chaque action des agents est journalisée
+avec OpenTelemetry (conventions GenAI), convertie en journaux d'événements XES et OCEL 2.0, puis étudiée par process
+mining : variabilité d'une exécution à l'autre, facteurs qui l'influencent, prédiction de l'échec en cours de run,
+et un tableau de bord qui observe l'équipe en temps réel.
 
-Projet en construction. Étape actuelle : **équipe d'agents** (étape 4 sur 11).
+```
+question -> équipe LangGraph -> spans OpenTelemetry -> XES / OCEL 2.0 -> process mining (pm4py)
+                 |                     |                                     |
+          réponse vérifiée     tableau de bord en direct          expérience de variabilité,
+          (chiffres, graphe)   (graphe, alertes, risque)          prédiction de l'échec
+```
+
+## Résultats en bref
+
+| Question | Résultat |
+|---|---|
+| L'équipe répond-elle juste ? | 36/50 sur le lot de développement (33/50 après relecture humaine) ; **20/24 sur un lot de test jamais utilisé pendant la mise au point**, identique sur 3 passages |
+| Combien ça coûte ? | 0,005 à 0,015 $ par question avec gemini-3.1-flash-lite, 7,7 s en médiane |
+| Le comportement varie-t-il d'un run à l'autre ? | 42 parcours distincts sur 479 runs ; la **température** augmente nettement la variabilité des parcours (p = 0,001) sans effet mesurable sur la justesse |
+| Qu'est-ce qui pèse sur la justesse, le coût, la latence ? | le **modèle** joue sur la conformité, le coût et la latence ; le **prompt** du planificateur sur le coût et la latence ; aucun facteur n'a d'effet significatif sur la justesse avec 20 questions |
+| Les parcours suivent-ils le modèle prévu ? | fitness moyenne 0,93 ; 6,2 % des transitions sortent du modèle de référence, surtout les reprises demandées par le relecteur |
+| Peut-on prévoir l'échec avant la fin ? | AUC 0,70 après 4 événements et 0,76 sur la trace complète (validation groupée par question) |
+
+Détails : [`reports/`](reports/) (contrôles des données, conversion des traces, process mining, expérience,
+prédiction), chiffres dans [`evaluation/results/`](evaluation/results/).
 
 ## Données
 
@@ -135,7 +157,7 @@ python evaluation/run_benchmark.py            # les 50 questions, notées automa
 python evaluation/run_benchmark.py --lot test --repetitions 3
 ```
 
-### Premiers résultats (gemini-3.1-flash-lite, température 0, un passage)
+### Résultats du benchmark (gemini-3.1-flash-lite, température 0)
 
 Notation sans juge LLM : une réponse est juste si son statut est le bon (répondue, clarification, impossible), si
 chaque chiffre attendu y figure à la tolérance près, si les mentions obligatoires y sont et les formulations
@@ -191,7 +213,116 @@ Limites honnêtes :
   mauvaise unité ou une mauvaise période peut être comptée juste (d'où la relecture humaine ci-dessus). Les
   comptages doivent être exacts (un nombre de communes à l'unité près) ; cette règle a été ajoutée après la
   relecture, qui avait trouvé 29 526 communes acceptées au lieu de 29 512.
-- **Un seul passage à température 0** : la variabilité d'un passage à l'autre est l'objet de l'étape 8.
+- **Un seul passage à température 0** sur le lot de développement : la variabilité d'un passage à
+  l'autre est mesurée par l'expérience ci-dessous.
+
+## Journalisation OpenTelemetry
+
+[`relais/telemetry.py`](relais/telemetry.py) : chaque run est une trace, chaque événement un span, avec les
+conventions sémantiques GenAI.
+
+| Span | Nom | Attributs principaux |
+|---|---|---|
+| le run | `invoke_agent equipe` | `gen_ai.conversation.id`, `gen_ai.request.model`, `gen_ai.request.temperature`, question, statut de la réponse, tokens |
+| un tour d'agent | `invoke_agent <agent>` | `gen_ai.agent.name`, `relais.action` (planifier, rediger, etape, relire), consigne, verdict du relecteur |
+| un appel au modèle | `chat <modèle>` | `gen_ai.provider.name`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens` |
+| un appel d'outil | `execute_tool <outil>` | `gen_ai.tool.name`, texte SQL, tableau produit et nombre de lignes, code Python, spécification du graphique, `error.message` |
+
+Les conventions couvrent les agents, les modèles, les tokens et les outils ; le reste (texte SQL, verdict du
+relecteur) va dans des attributs `relais.*`. Les spans sont exportés en JSON lines, une ligne par span.
+
+## Des traces aux journaux d'événements
+
+[`relais/eventlog.py`](relais/eventlog.py) convertit les spans en **XES** (un cas par run, au niveau des agents ou
+au niveau détaillé) et en **OCEL 2.0** (objets : question, run, agent, requête, tableau, graphique, code). Les
+journaux de l'expérience sont dans [`reports/eventlogs/`](reports/eventlogs/).
+
+[Étude de la conversion](reports/conversion.md) : l'ordre, les durées, les ressources et les erreurs passent bien ;
+la **hiérarchie** des spans est perdue (il faut choisir un niveau : 2 635 ou 7 565 événements), 3 123 appels d'outil
+imbriqués dans le tour de leur agent deviennent des événements successifs, et les **objets partagés** (un tableau
+produit par une requête, lu par l'agent statistiques, dessiné par l'agent visualisation) sont invisibles en XES
+alors que l'OCEL les garde (25 130 relations). Aplatir l'OCEL sur un autre objet que le run fusionne les
+répétitions (question) ou duplique des événements (tableau).
+
+## Process mining
+
+[`relais/mining.py`](relais/mining.py), [rapport](reports/process_mining.md). Le modèle de référence est découvert
+(Inductive Miner) à partir des parcours attendus des 50 questions.
+
+![Parcours observés](reports/figures/dfg_observe.png)
+
+- **Conformité** : fitness des alignements 0,928 en moyenne ; 323 runs sur 479 parfaitement conformes.
+- **Écarts** : 193 transitions sur 3 114 (6,2 %) sortent du modèle, surtout relecteur vers planificateur (152
+  reprises) et des passages directs du planificateur à la visualisation ou aux statistiques.
+- **Passation** : le planificateur est le centre du réseau (631 passages vers le relecteur, 427 vers l'agent SQL).
+- **Parcours et justesse** : les réponses fausses ont des parcours plus éloignés du parcours attendu (distance
+  d'édition 2,7 contre 1,0) et deux fois plus de reprises du relecteur.
+
+## Expérience de variabilité
+
+[`evaluation/run_experiment.py`](evaluation/run_experiment.py), [rapport](reports/experience.md). Plan factoriel :
+2 modèles (gemini-3.1-flash-lite, gemini-3.5-flash-lite) × 2 températures (0, 1) × 2 prompts du planificateur
+(« standard » avec règles et guide de décision, « concis » sans) × 20 questions × 3 répétitions = 479 runs
+analysés, 4,68 $.
+
+| Facteur | Variabilité des parcours | Fitness | Coût | Latence | Justesse |
+|---|---|---|---|---|---|
+| modèle | n.s. | p = 0,007 | p = 0,015 | p < 0,001 | n.s. (p = 0,13) |
+| température | **p = 0,001** | n.s. | n.s. | n.s. | n.s. |
+| prompt | n.s. | n.s. | p < 0,001 | p < 0,001 | n.s. (p = 0,34) |
+
+![Variabilité des parcours](reports/figures/experience_variabilite.png)
+
+- À température 0, gemini-3.1-flash-lite suit presque toujours le même parcours pour une question (1,05 à 1,10
+  variante sur 3 répétitions) ; à température 1, il en suit près de 2.
+- Avec le prompt « standard », gemini-3.1-flash-lite est plus juste (80 % contre 60 % à température 0), moins cher
+  et plus rapide (7,8 s contre 10,5 s en médiane) qu'avec le prompt « concis » ; gemini-3.5-flash-lite est peu
+  sensible au prompt.
+- Les questions causales déguisées restent l'échec le plus fréquent (12,5 % de justesse) : le planificateur répond
+  « impossible » au lieu de donner la corrélation avec ses limites.
+
+## Prédiction de l'échec en cours de run
+
+[`relais/prediction.py`](relais/prediction.py), [rapport](reports/prediction.md). À partir des k premiers
+événements terminés d'un run (tours d'agents, appels d'outils et leurs échecs, refus du relecteur, tokens, durée)
+et de la configuration, sans la catégorie de la question (inconnue pour une vraie question), un gradient boosting
+prédit si la réponse sera fausse.
+
+![AUC selon la longueur du préfixe](reports/figures/prediction_auc.png)
+
+AUC 0,56 au premier événement (presque seulement la configuration), 0,70 après 4 événements, 0,76 sur la trace
+complète, en validation croisée groupée par question (774 runs). Le modèle est à peu près calibré (risque prédit
+0,10 pour 14 % d'échecs observés, 0,89 pour 70 %) ; c'est un signal d'alerte, pas une garantie.
+
+## Tableau de bord
+
+```bash
+streamlit run app/dashboard.py
+```
+
+- **En direct** : on pose une question ; le graphe de l'équipe s'anime (agent actif, passations, transitions hors
+  du modèle de référence en orange), les alertes s'affichent (déviation, échec d'outil, refus du relecteur, étape
+  lente) et la jauge de risque d'échec évolue à chaque événement ; puis la réponse, le graphique, les requêtes.
+- **Rejouer un run** : la même vue sur un run enregistré, sans clé d'API.
+- Les rapports de l'expérience, du process mining, de la prédiction et de la conversion.
+
+La logique de surveillance ([`relais/monitor.py`](relais/monitor.py)) est indépendante de Streamlit et testée.
+
+## Reproduire
+
+```bash
+pip install -r requirements.txt
+python scripts/download_data.py && python scripts/build_database.py      # données et base
+python benchmark/build_references.py && python benchmark/build_references.py --lot test
+python evaluation/run_benchmark.py                                      # 50 questions, environ 0,4 $
+python evaluation/run_benchmark.py --lot test --repetitions 3           # 72 runs, environ 0,6 $
+python evaluation/run_experiment.py                                     # 480 runs, environ 5 $
+python evaluation/analyze_experiment.py                                 # conversion, process mining, expérience
+python evaluation/train_failure_model.py                                # prédiction de l'échec
+streamlit run app/dashboard.py
+```
+
+La clé Gemini se lit dans la variable `GEMINI_API_KEY` ou dans `.streamlit/secrets.toml` (ignoré par git).
 
 ## Tests
 
@@ -199,4 +330,10 @@ Limites honnêtes :
 python -m pytest
 ```
 
-Les tests n'utilisent ni LLM ni réseau ; ils tournent dans la CI GitHub Actions à chaque push.
+Les tests n'utilisent ni LLM ni réseau (faux LLM scripté par rôle) : outils verrouillés et tentatives de
+contournement, équipe et ses boucles, évaluation, spans OpenTelemetry, conversion XES et OCEL, process mining,
+moniteur, prédiction, démarrage du tableau de bord. Ils tournent dans la CI GitHub Actions à chaque push.
+
+## Licences
+
+Données : Licence Ouverte Etalab (voir ci-dessus). pm4py est distribué sous licence AGPL v3.
