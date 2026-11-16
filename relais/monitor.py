@@ -13,6 +13,8 @@ from relais.benchmark import load_questions
 from relais.mining import directly_follows, reference_frame
 
 SLOW_EVENT_S = 25.0
+# above this predicted risk, about two runs in three end with a wrong answer (calibration in reports/prediction.md)
+RISK_ALERT = 0.70
 
 
 @dataclass
@@ -38,6 +40,7 @@ class LiveMonitor:
         self.path, self.active = [], None
         self.edges = Counter()
         self.risks = []          # (number of finished events, risk)
+        self.risk_alerted = False
         self.finished = False
         self._lock = threading.Lock()
 
@@ -57,7 +60,7 @@ class LiveMonitor:
             if event.parent is None and self.active == event.agent:
                 self.active = None
             if self.risk_model is not None:
-                self.risks.append((len(self.events), self.risk_model.risk(self.events, self.config)))
+                self._record_risk(self.risk_model.risk(self.events, self.config))
 
     def _new_turn(self, event):
         previous = self.path[-1] if self.path else "début"
@@ -76,6 +79,17 @@ class LiveMonitor:
             self._alert("alerte", "Le relecteur refuse la réponse : " + (str(problems[0])[:160] if problems else ""))
         if event.duration_ms and event.duration_ms > SLOW_EVENT_S * 1000 and event.parent is not None:
             self._alert("info", f"{event.agent} : {event.action} a pris {event.duration_ms / 1000:.0f} s.")
+
+    def _record_risk(self, risk):
+        """Keep the risk curve; alert once, when the risk first goes above the threshold: a run can follow an
+        allowed path and still be heading for a wrong answer."""
+        self.risks.append((len(self.events), risk))
+        if risk >= RISK_ALERT and not self.risk_alerted:
+            self.risk_alerted = True
+            conforme = not any(a.message.startswith("Transition hors") for a in self.alerts)
+            self._alert("alerte", f"Risque élevé de réponse fausse : {100 * risk:.0f} % (seuil "
+                                  f"{100 * RISK_ALERT:.0f} %)" + (", alors que le parcours est conforme." if conforme
+                                                                 else "."))
 
     def _alert(self, level, message):
         self.alerts.append(Alert(level, message, time.time()))

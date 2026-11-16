@@ -29,7 +29,14 @@ RULES = """Règles de fond, à respecter dans le plan et dans la réponse :
   pas. Les colonnes de débit de fixe_debits sont cumulatives.
 - Secret statistique : une valeur vide n'est pas un zéro ; signaler quand une part importante des communes est
   masquée.
-- Causalité : une corrélation ne prouve pas une cause ; le dire quand la question suggère un effet.
+- Causalité : une corrélation ne prouve pas une cause. Quand la question suggère un effet (« fait-il augmenter »,
+  « est-ce parce que »), mesurer l'association que les données permettent (corrélation entre communes,
+  comparaison entre opérateurs), la donner, puis expliquer pourquoi elle ne prouve pas l'effet. Ne pas refuser
+  une telle question quand les deux grandeurs sont dans la base. Exception : une question sur un mouvement ou
+  une évolution (habitants qui partent, pauvreté qui a baissé) d'une grandeur qui n'a qu'une année est
+  « impossible », car une association entre deux niveaux à une même date ne mesure pas un changement.
+- Périodes : l'éligibilité fixe couvre 23 trimestres (2019_T3 à 2026_T2) et les sites mobiles plusieurs années ;
+  les revenus, la pauvreté et la population n'ont qu'une année. L'évolution de ces dernières ne se mesure pas.
 - Opérateurs : rester factuel, citer la précision statistique quand elle existe, ne jamais désigner un "meilleur"
   opérateur. Aucune donnée de prix, d'abonnés ou de satisfaction n'existe."""
 
@@ -59,6 +66,8 @@ Comment décider :
 2. Si aucune donnée ne permet d'aborder la question, statut "impossible" : explique ce qui manque et ce que les
    données permettent de dire à la place. Si les données permettent une réponse factuelle, même partielle (par
    exemple des volumes rapportés au nombre de sites), traite la question et donne les limites dans la réponse.
+   Une question causale n'est « impossible » que si l'une des deux grandeurs manque, ou si elle porte sur
+   l'évolution d'une grandeur qui n'a qu'une année.
 3. Sinon, statut "a_traiter" avec les étapes dans l'ordre. Chaque étape est confiée à un agent avec une consigne
    précise (tables, filtres, trimestre, ce qu'il faut calculer). Pas d'étape inutile : statistiques seulement si
    un calcul statistique est demandé ou nécessaire ; visualisation seulement si la question demande de montrer,

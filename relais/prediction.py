@@ -7,7 +7,6 @@ the model must work live in the dashboard.
 """
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -84,7 +83,7 @@ def make_classifiers():
                                                                 l2_regularization=1.0)}
 
 
-def grouped_scores(data, folds=5, seed=0):
+def grouped_scores(data, folds=5):
     """AUC and Brier score of each classifier, by prefix length, with a cross-validation grouped by question
     (a question is never in the training and the test folds at the same time)."""
     from sklearn.metrics import brier_score_loss, roc_auc_score

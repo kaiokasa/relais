@@ -40,7 +40,7 @@ class SandboxResult:
     def summary(self, limit=4000):
         """What the LLM sees."""
         if self.timeout:
-            return f"Échec : le code a dépassé le temps maximal et a été arrêté."
+            return "Échec : le code a dépassé le temps maximal et a été arrêté."
         parts = [] if self.ok else [f"Erreur :\n{self.erreur}"]
         if self.sortie.strip():
             parts.append(f"Sortie :\n{self.sortie.strip()}")

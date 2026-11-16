@@ -1,6 +1,5 @@
 """The tools of the agents: the locked SQL tool, the Python sandbox and the chart renderer (no LLM, no network)."""
 import os
-import sys
 
 import duckdb
 import pandas as pd

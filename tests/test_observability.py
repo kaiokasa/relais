@@ -1,7 +1,5 @@
 """Traces -> event logs -> process mining, the live monitor and the failure prediction (no LLM, no network)."""
-import json
 
-import pandas as pd
 import pytest
 
 from relais import eventlog, mining, prediction
@@ -167,3 +165,25 @@ def test_console_figures():
     assert waterfall_figure([], []).data == ()
     assert risk_gauge(0.72).data[0].value == 72 and risk_gauge(None).data[0].value is None
     assert len(risk_curve([(1, 0.2), (2, 0.1)]).data[0].x) == 2
+
+
+def test_live_monitor_alerts_once_when_the_risk_crosses_the_threshold():
+    from relais.monitor import RISK_ALERT
+    from relais.team.trace import Event
+
+    class FakeRisk:
+        def __init__(self, values):
+            self.values = iter(values)
+
+        def risk(self, events, config):
+            return next(self.values)
+
+    monitor = LiveMonitor({"modele": "m"}, reference={("début", "planificateur"), ("planificateur", "planificateur")},
+                          risk_model=FakeRisk([0.3, RISK_ALERT + 0.1, 0.5, 0.95]))
+    for i in range(4):
+        event = Event(i, None, "planificateur", "planifier", float(i), float(i) + 0.5, True, {})
+        monitor("debut", event)
+        monitor("fin", event)
+    risk_alerts = [a for a in monitor.snapshot()["alerts"] if a.message.startswith("Risque élevé")]
+    assert len(risk_alerts) == 1 and risk_alerts[0].niveau == "alerte"
+    assert "80 %" in risk_alerts[0].message and "parcours est conforme" in risk_alerts[0].message

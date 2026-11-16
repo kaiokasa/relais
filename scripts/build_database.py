@@ -13,7 +13,6 @@ import calendar
 import datetime as dt
 import io
 import json
-import re
 import sys
 import time
 import zipfile

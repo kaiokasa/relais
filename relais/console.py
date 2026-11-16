@@ -33,10 +33,6 @@ def agent_colours(mode="dark"):
     return {agent: series[slot] for agent, slot in AGENT_SLOTS.items()}
 
 
-AGENT_COLOURS = agent_colours("dark")
-FAILURE = THEMES["dark"]["failure"]
-
-
 def _depths(events):
     parents = {e.id: e.parent for e in events}
     depth = {}
@@ -48,16 +44,13 @@ def _depths(events):
     return depth
 
 
-def waterfall_figure(events, running=(), started_at=None, now=None, hide_llm_calls=False, max_rows=45,
-                     mode="dark"):
+def waterfall_figure(events, running=(), started_at=None, now=None, max_rows=45, mode="dark"):
     """The span waterfall: one bar per event (start, duration), nested under its agent, coloured by agent; failed
     events in the failure colour and marked; running events drawn up to now, lighter."""
     t = theme(mode)
     colours_by_agent = agent_colours(mode)
     now = now or time.time()
     all_events = sorted(list(events) + list(running), key=lambda e: (e.start, e.id))
-    if hide_llm_calls:
-        all_events = [e for e in all_events if e.action != "appel_llm"]
     all_events = all_events[-max_rows:]
     figure = go.Figure()
     if not all_events:
