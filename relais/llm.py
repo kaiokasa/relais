@@ -4,7 +4,7 @@ The key is read from the GEMINI_API_KEY (or GOOGLE_API_KEY) environment variable
 (ignored by git). It is never written in the code, in the logs or in the traces.
 
 The model is chosen explicitly: the variability experiment compares models, so the name used must be known and
-stable. Default: gemini-3.5-flash-lite (cheapest and fastest), or the GEMINI_MODEL environment variable.
+stable. Default: gemini-3.1-flash-lite, or the GEMINI_MODEL environment variable.
 
 Check the connection (prints the model and a short answer, never the key):
     python -m relais.llm
@@ -15,7 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SECRETS_FILE = ROOT / ".streamlit" / "secrets.toml"
-DEFAULT_MODEL = "gemini-3.5-flash-lite"
+DEFAULT_MODEL = "gemini-3.1-flash-lite"
 
 
 class MissingApiKey(RuntimeError):
@@ -41,8 +41,8 @@ def model_name(model=None):
 
 
 def no_thinking(model):
-    """Settings that turn the 'thinking' step off. The models do not accept the same one: 'lite' models reject a
-    budget of 0, gemini-3.8-flash rejects the 'minimal' level."""
+    """Settings that turn the 'thinking' step off. The models do not accept the same one: gemini-3.5-flash-lite
+    rejects a budget of 0, gemini-3.8-flash rejects the 'minimal' level; gemini-3.1-flash-lite accepts both."""
     return {"thinking_level": "minimal"} if "lite" in model else {"thinking_budget": 0}
 
 

@@ -7,7 +7,7 @@ questions sur les données ouvertes de l'ARCEP et de l'INSEE. Chaque action des 
 OpenTelemetry, convertie en journaux d'événements (XES, OCEL 2.0) et étudiée par process mining : variabilité d'une
 exécution à l'autre, facteurs qui l'influencent, prédiction d'échec en cours de run.
 
-Projet en construction. Étape actuelle : **outils des agents** (étape 3 sur 11).
+Projet en construction. Étape actuelle : **équipe d'agents** (étape 4 sur 11).
 
 ## Données
 
@@ -64,8 +64,8 @@ déguisées, comparaisons d'opérateurs qui doivent rester factuelles).
 Chaque question porte :
 
 - le statut attendu de la réponse (répondue, demande de clarification, ou impossible avec ces données) ;
-- le **parcours attendu** dans l'équipe (par exemple planificateur, SQL, statistiques, relecteur), qui sert de
-  modèle de référence pour le conformance checking ;
+- le **parcours attendu** dans l'équipe (par exemple planificateur, SQL, statistiques, planificateur qui rédige,
+  relecteur), qui sert de modèle de référence pour le conformance checking ;
 - un SQL de référence et, pour les questions statistiques, le calcul de référence (scipy) ;
 - les vérifications automatiques de la réponse : chiffres attendus avec leur tolérance, mentions obligatoires
   (par exemple « corrélation » et « causalité » pour une question causale), formulations interdites (« meilleur
@@ -99,6 +99,88 @@ Chaque agent n'a accès qu'à ses outils, et chaque outil est verrouillé par no
 
 Les tests essaient de contourner chaque verrou (COPY, ATTACH, read_csv, deux requêtes, lecture de la clé, ouverture
 de fichiers, réseau, boucle infinie...).
+
+## L'équipe
+
+```
+planificateur -> (sql | statistiques | visualisation)* -> planificateur -> relecteur -> fin
+                                                              ^              |
+                                                              +-- à corriger +
+```
+
+- Le **planificateur** n'a aucun outil : il découpe la question en étapes confiées aux agents, ou demande une
+  clarification, ou explique que les données ne permettent pas de répondre ; une fois les étapes faites, il rédige
+  la réponse à partir de leurs résultats.
+- L'**agent SQL**, l'**agent statistiques** et l'**agent visualisation** n'ont chacun que leur outil (voir
+  ci-dessus) et un nombre limité d'appels.
+- Le **relecteur** vérifie d'abord par du code que chaque nombre de la réponse vient d'un résultat (ou de la
+  documentation des données) et qu'un graphique demandé a bien été dessiné, puis demande au LLM de contrôler le
+  raisonnement (granularité, causalité, neutralité entre opérateurs). Une réponse refusée repart au planificateur,
+  deux fois au plus.
+- Chaque tour d'agent, appel au LLM et appel d'outil est enregistré avec son début, sa fin et ses attributs
+  ([`relais/team/trace.py`](relais/team/trace.py)) : c'est la matière de la journalisation des étapes suivantes.
+
+Modèle : `gemini-3.1-flash-lite` (0,25 $ par million de tokens en entrée, 1,50 $ en sortie,
+[tarifs Google](https://ai.google.dev/gemini-api/docs/pricing)).
+
+```bash
+python -m relais.ask --trace "Quelle part des locaux est éligible à la fibre au 2e trimestre 2026 ?"
+python evaluation/run_benchmark.py            # les 50 questions, notées automatiquement
+```
+
+### Premiers résultats (gemini-3.1-flash-lite, température 0, un passage)
+
+Notation sans juge LLM : une réponse est juste si son statut est le bon (répondue, clarification, impossible), si
+chaque chiffre attendu y figure à la tolérance près, si les mentions obligatoires y sont et les formulations
+interdites absentes, et si le graphique demandé a été dessiné.
+
+| Catégorie | Justes | Parcours conformes | Coût moyen | Latence moyenne |
+|---|---|---|---|---|
+| SQL seul | 9/12 | 9/12 | 0,0059 $ | 5,2 s |
+| SQL + statistiques | 5/8 | 3/8 | 0,0081 $ | 8,9 s |
+| SQL + visualisation | 5/7 | 2/7 | 0,0095 $ | 9,3 s |
+| Équipe complète | 4/6 | 2/6 | 0,0116 $ | 13,4 s |
+| Plusieurs étapes | 4/5 | 1/5 | 0,0143 $ | 14,1 s |
+| Pièges : ambiguës | 2/3 | 3/3 | 0,0011 $ | 1,4 s |
+| Pièges : impossibles | 4/4 | 4/4 | 0,0011 $ | 1,3 s |
+| Pièges : causales | 1/3 | 1/3 | 0,0012 $ | 1,6 s |
+| Pièges : opérateurs | 2/2 | 1/2 | 0,0091 $ | 8,0 s |
+| **Total** | **36/50 (72 %)** | **26/50** | **0,37 $ en tout** | **7,7 s (médiane)** |
+
+**Relecture humaine** des 36 réponses notées justes : 33 sont entièrement justes. Trois ont les bons chiffres
+mais une interprétation trompeuse que la notation automatique ne voit pas : V05 compte les pannes par mois depuis
+2022 alors que les relevés ne couvrent que 12 mois, P11 désigne Orange par son code 20801 au lieu de son nom, M04
+attribue le nombre de sites 4G au mauvais trimestre. **Score après relecture : 33/50 (66 %).**
+
+Ce que montrent les erreurs :
+
+- **Granularité** : recalculer sur les mesures brutes un indicateur que l'ARCEP publie déjà pondéré (Q09), ou
+  filtrer les mauvais tests (S08), donne des taux très différents de la référence ; le relecteur LLM ne l'a pas vu.
+- **Prudence excessive** : le planificateur répond « impossible » à des questions qui demandent une réponse factuelle
+  assortie de limites (taux de pauvreté sous secret statistique S07, question causale P08, pannes par opérateur P10)
+  ou une clarification (P02).
+- **Parcours** : seule la moitié des parcours suit exactement le modèle attendu ; les écarts les plus fréquents sont
+  un passage par l'agent statistiques pour un simple calcul et les reprises demandées par le relecteur. C'est la
+  variabilité qu'étudient les étapes suivantes.
+
+Limites honnêtes :
+
+- **Corrections après un pilote.** Après un pilote de 5 questions (Q01, S01, V02, M01, P10), trois règles générales
+  ont été ajoutées aux prompts (l'agent SQL ne calcule pas de statistiques et exprime les taux en %, « impossible »
+  seulement si aucune donnée ne permet d'aborder la question) et l'outil graphique accepte les deux orientations
+  d'une barre ; les 45 autres questions n'avaient pas été vues. Une de ces règles a eu un effet de bord sur M01
+  (l'agent statistiques a pris un classement déjà calculé pour des données manquantes).
+- **Corrections du jeu de questions.** Après le premier passage (34/50, fichier
+  `evaluation/results/premier_passage_flash-lite-3.1.csv`), quatre défauts de l'évaluation ont été corrigés :
+  E01, E04 et E06 précisent désormais la corrélation de Spearman attendue, E01 et E06 n'exigent plus un nombre de
+  départements que la question ne demande pas, S04 accepte une demi-largeur d'intervalle, P12 vérifie seulement le
+  fait demandé (l'ARCEP publie deux décomptes légèrement différents des sites 5G d'Orange) ; un plantage du graphe
+  (nouvelles étapes demandées au-delà de la limite) a été corrigé.
+- **L'évaluation vérifie la présence des chiffres, pas leur sens** : une réponse qui cite le bon nombre avec une
+  mauvaise unité ou une mauvaise période peut être comptée juste (d'où la relecture humaine ci-dessus). Les
+  comptages doivent être exacts (un nombre de communes à l'unité près) ; cette règle a été ajoutée après la
+  relecture, qui avait trouvé 29 526 communes acceptées au lieu de 29 512.
+- **Un seul passage à température 0** : la variabilité d'un passage à l'autre est l'objet de l'étape 8.
 
 ## Tests
 

@@ -35,7 +35,7 @@ def test_every_question_has_a_frozen_reference(questions, references):
         values = references["questions"][q.id]["valeurs"]
         if q.statut_attendu == "repondu":
             expected = expected_values(q, values)
-            assert expected or q.graphique, f"{q.id}: nothing to check in the answer"
+            assert expected or q.graphique or q.mentions, f"{q.id}: nothing to check in the answer"
             assert all(v is not None for v in expected.values()), q.id
         else:
             assert values == {}, q.id
@@ -56,18 +56,19 @@ def test_paths_follow_the_categories(questions):
 
 def make(**changes):
     base = dict(id="Q99", categorie="sql", question="?", statut_attendu="repondu",
-                parcours_attendu=["planificateur", "sql", "relecteur"], sql_reference=["SELECT 1"])
+                parcours_attendu=["planificateur", "sql", "planificateur", "relecteur"], sql_reference=["SELECT 1"])
     return Question(**{**base, **changes})
 
 
 def test_check_catches_inconsistent_questions():
     assert check(make()) == []
     assert check(make(parcours_attendu=["sql", "relecteur"]))
+    assert check(make(parcours_attendu=["planificateur", "sql", "relecteur"]))  # the planner writes the answer
     assert check(make(parcours_attendu=["planificateur", "inconnu", "relecteur"]))
     assert check(make(statut_attendu="impossible"))  # a refusal uses no SQL
     assert check(make(graphique={"type": "bar"}))  # a chart without the visualisation agent
     assert check(make(graphique={"type": "camembert"}, parcours_attendu=["planificateur", "sql", "visualisation",
-                                                                         "relecteur"]))
+                                                                         "planificateur", "relecteur"]))
     assert check(make(mentions=["(non fermée"]))
 
 

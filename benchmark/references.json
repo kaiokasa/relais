@@ -1,6 +1,6 @@
 {
  "version_donnees": "750f97fcf2fdbf48",
- "calcule_le": "2026-11-15",
+ "calcule_le": "2026-11-16",
  "questions": {
   "Q01": {
    "valeurs": {
@@ -142,6 +142,7 @@
     "moyenne_mbps": 89.58,
     "ic95_bas": 87.32,
     "ic95_haut": 91.85,
+    "ic95_demi_largeur": 2.27,
     "tests": 10889
    },
    "lignes_resultats": [

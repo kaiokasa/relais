@@ -48,6 +48,21 @@ def series_count(spec, data):
     return 1
 
 
+def orient_bars(spec, tables):
+    """Bars written the Plotly way for a horizontal chart (x = values, y = categories) are accepted: the columns are
+    swapped and the bars made horizontal."""
+    table = tables.get(spec.get("tableau")) if isinstance(spec, dict) else None
+    if table is None or spec.get("type") != "bar":
+        return spec
+    data = table.data if hasattr(table, "data") else table
+    x, y = spec.get("x"), spec.get("y")
+    if isinstance(x, str) and isinstance(y, str) and x in data.columns and y in data.columns:
+        if pd.api.types.is_numeric_dtype(data[x]) and not pd.api.types.is_numeric_dtype(data[y]):
+            return {**spec, "x": y, "y": x, "orientation": "h",
+                    "titre_x": spec.get("titre_y", ""), "titre_y": spec.get("titre_x", "")}
+    return spec
+
+
 def check_spec(spec, tables):
     """The table to draw, or ChartError listing every problem of the specification."""
     if not isinstance(spec, dict):
@@ -144,6 +159,7 @@ def label_line_ends(figure):
 
 def render(spec, tables):
     """Check the specification and draw it; returns a Chart (ChartError if the specification is wrong)."""
+    spec = orient_bars(spec, tables)
     data = check_spec(spec, tables)
     kind, x, colour = spec["type"], spec.get("x"), spec.get("couleur")
     y = spec.get("y")

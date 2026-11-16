@@ -14,6 +14,7 @@ QUESTIONS_FILE = ROOT / "benchmark" / "questions.yaml"
 REFERENCES_FILE = ROOT / "benchmark" / "references.json"
 
 AGENTS = ("planificateur", "sql", "statistiques", "visualisation", "relecteur")
+WORKERS = ("sql", "statistiques", "visualisation")
 STATUSES = ("repondu", "clarification", "impossible")
 CATEGORIES = {
     "sql": "SQL seul",
@@ -41,6 +42,7 @@ class Question:
     sql_reference: list = field(default_factory=list)
     calcul_reference: str = ""
     valeurs_attendues: list | None = None
+    valeurs_au_choix: list = field(default_factory=list)
     mentions: list = field(default_factory=list)
     interdits: list = field(default_factory=list)
     graphique: dict | None = None
@@ -61,8 +63,12 @@ def check(question):
     path = q.parcours_attendu
     if any(step not in AGENTS for step in path):
         problems.append(f"unknown agent in {path}")
-    if not path or path[0] != "planificateur" or path[-1] != "relecteur" or path.count("planificateur") != 1:
-        problems.append("the path starts with the planner (once) and ends with the reviewer")
+    workers = [step for step in path if step in WORKERS]
+    # the planner plans, the workers run the steps, the planner writes the answer, the reviewer checks it
+    expected_shape = (["planificateur", *workers, "planificateur", "relecteur"] if workers
+                      else ["planificateur", "relecteur"])
+    if path != expected_shape:
+        problems.append(f"the path must be {expected_shape}")
     if q.statut_attendu == "repondu" and not q.sql_reference:
         problems.append("an answered question needs a reference SQL")
     if q.statut_attendu != "repondu" and (q.sql_reference or "sql" in path):
