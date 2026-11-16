@@ -4,6 +4,11 @@
 
 Observabilité et process mining d'une équipe d'agents LLM qui analyse la connectivité en France (fixe et mobile).
 
+![Démonstration : une question, l'équipe au travail en direct, la réponse avec son graphique et ses sources, puis l'observabilité du run](docs/demo.gif)
+
+*Une question posée à l'équipe : le déroulé en direct (cascade des spans, graphe de l'équipe, risque d'échec), la
+réponse avec son graphique et ses sources, puis l'observabilité complète du run (alertes comprises).*
+
 Une équipe multi-agent LangGraph (planificateur, interprète, agent SQL, agent statistiques, agent visualisation,
 relecteur)
 répond à des questions sur les données ouvertes de l'ARCEP et de l'INSEE. Chaque action des agents est journalisée
@@ -119,9 +124,11 @@ Chaque agent n'a accès qu'à ses outils, et chaque outil est verrouillé par no
 - **Agent statistiques** ([`relais/tools/sandbox.py`](relais/tools/sandbox.py)) : le code Python s'exécute dans un
   processus séparé (mode isolé, dossier vide, environnement réduit sans clé d'API) avec pandas, scipy et
   statsmodels ; un hook d'audit bloque fichiers, réseau, sous-processus et ctypes, et le processus est arrêté au
-  bout du délai. Le résultat revient en JSON, jamais en pickle. Limite : ce hook protège des erreurs d'un LLM, ce
-  n'est pas une frontière de sécurité contre un attaquant déterminé (il faudrait un bac à sable du système, comme
-  un conteneur sans réseau).
+  bout du délai. Le résultat revient en JSON, jamais en pickle. Ce hook protège des erreurs d'un LLM ; la vraie
+  frontière de sécurité est le **conteneur** : avec Docker, le code s'exécute dans un service à part
+  ([`relais/tools/sandbox_server.py`](relais/tools/sandbox_server.py)), sur un réseau sans accès à Internet, avec un
+  système de fichiers en lecture seule, un utilisateur sans droits, aucune capacité Linux et des limites de
+  mémoire, de CPU et de processus (voir [Docker](#docker)).
 - **Agent visualisation** ([`relais/tools/charts.py`](relais/tools/charts.py)) : il écrit une spécification
   (type, tableau, colonnes, titres) que notre code vérifie puis dessine avec Plotly : couleurs dans un ordre fixe
   (palette vérifiée pour les daltoniens), un seul axe vertical, étiquettes directes jusqu'à 4 séries.
@@ -338,6 +345,23 @@ streamlit run app/dashboard.py
 ```
 
 La clé Gemini se lit dans la variable `GEMINI_API_KEY` ou dans `.streamlit/secrets.toml` (ignoré par git).
+
+## Docker
+
+```bash
+docker compose --profile donnees run --rm donnees     # une fois : télécharge les données et construit la base
+docker compose up --build                             # puis ouvrir http://localhost:8510
+```
+
+Deux conteneurs construits depuis la même image ([`Dockerfile`](Dockerfile), [`docker-compose.yml`](docker-compose.yml)) :
+
+| Conteneur | Rôle | Réseau | Restrictions |
+|---|---|---|---|
+| `relais` | application Streamlit et équipe d'agents | Internet (API Gemini) et réseau interne | utilisateur non root ; base et runs montés en lecture seule |
+| `relais-sandbox` | exécute le code Python de l'agent statistiques | réseau interne seulement, **sans accès à Internet** | système de fichiers en lecture seule (sauf `/tmp` en mémoire), utilisateur `nobody`, aucune capacité Linux, `no-new-privileges`, 1 Go de mémoire, 2 CPU, 128 processus |
+
+La clé Gemini se lit dans la variable `GEMINI_API_KEY` (ou dans un fichier `.env` ignoré par git) ; sans clé, le
+rejeu des runs enregistrés et les rapports fonctionnent.
 
 ## Tests
 

@@ -54,6 +54,10 @@ def waterfall_figure(events, running=(), started_at=None, now=None, max_rows=45,
     all_events = all_events[-max_rows:]
     figure = go.Figure()
     if not all_events:
+        figure.update_xaxes(visible=False)
+        figure.update_yaxes(visible=False)
+        figure.add_annotation(text="En attente du premier événement…", x=0.5, y=0.5, xref="paper", yref="paper",
+                              showarrow=False, font={"color": t["muted"], "size": 12})
         return _layout(figure, 120, "Cascade des spans", t)
     origin = started_at or all_events[0].start
     depth = _depths(all_events)

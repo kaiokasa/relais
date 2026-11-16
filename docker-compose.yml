@@ -1,0 +1,66 @@
+# docker compose up --build        then open http://localhost:8510
+#
+# Two containers built from the same image:
+# - app: the Streamlit app and the team of agents; it needs the Internet for the Gemini API
+# - sandbox: runs the Python code written by the statistics agent, on a network with NO Internet access, with a
+#   read-only file system, no Linux capability, a non-root user and limits on memory, CPU and processes
+#
+# The database is built once with:  docker compose --profile donnees run --rm donnees
+
+services:
+  app:
+    build: .
+    image: relais
+    container_name: relais
+    ports:
+      - "8510:8501"
+    volumes:
+      - ./data:/app/data:ro          # data/connectivite.duckdb
+      - ./runs:/app/runs:ro          # recorded runs, for the replay
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}   # optional: without it, only the replay and the reports work
+      GEMINI_MODEL: ${GEMINI_MODEL:-}
+      RELAIS_SANDBOX_URL: http://sandbox:8800
+    networks: [web, isole]
+    depends_on:
+      sandbox:
+        condition: service_healthy
+    restart: unless-stopped
+
+  sandbox:
+    image: relais
+    container_name: relais-sandbox
+    command: ["python", "-m", "relais.tools.sandbox_server"]
+    networks: [isole]                # internal network: no route to the Internet
+    user: "65534:65534"              # nobody
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777     # the only writable place (working directory of each run)
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 1g
+    cpus: 2
+    pids_limit: 128
+    environment:
+      HOME: /tmp
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8800/health')"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    restart: unless-stopped
+
+  # one-off job: download the open data and build data/connectivite.duckdb
+  donnees:
+    image: relais
+    profiles: [donnees]
+    command: ["sh", "-c", "python scripts/download_data.py && python scripts/build_database.py"]
+    volumes:
+      - ./data:/app/data
+    networks: [web]
+
+networks:
+  web: {}
+  isole:
+    internal: true

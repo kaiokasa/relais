@@ -80,6 +80,8 @@ st.markdown(f"""<style>
                   vertical-align: middle;}}
 [data-testid="stMetricValue"] {{font-size: 1.3rem;}}
 [data-testid="stMetricLabel"] p {{font-size: .75rem; letter-spacing: .04em; text-transform: uppercase; opacity: .75;}}
+/* the live views refresh every second: no greying of the previous state while the next one is computed */
+[data-stale="true"] {{opacity: 1 !important; transition: none !important;}}
 @media (prefers-reduced-motion: reduce) {{* {{transition: none !important; animation: none !important;}}}}
 </style>""", unsafe_allow_html=True)
 
@@ -317,7 +319,7 @@ def chat_page():
         counts = job_manager().counts()
         st.caption(f"{counts[RUNNING]} run(s) en cours et {counts[WAITING]} en attente dans l'application.")
 
-    _, column, _ = st.columns([1, 3, 1])
+    _, column, _ = st.columns([1, 5, 1])
     with column:
         if not st.session_state.messages:
             st.markdown('<div class="relais-greeting">Que veux-tu savoir sur la connectivité en France ?</div>'

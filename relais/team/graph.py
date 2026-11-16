@@ -33,7 +33,7 @@ from relais.team.trace import Recorder
 from relais.telemetry import SpanBridge
 from relais.tools.charts import ChartError, render
 from relais.tools.sandbox import run_python
-from relais.tools.sql import QueryFailed, QueryRejected, SqlTool
+from relais.tools.sql import QueryFailed, QueryRejected, SqlTool, head_and_tail
 from relais.tools.values import ValueIndex
 
 WORKERS = ("sql", "statistiques", "visualisation")
@@ -202,7 +202,7 @@ class Run:
         for table in self.sql.tables.values():
             columns = ", ".join(f"{c} ({t})" for c, t in table.data.dtypes.astype(str).items())
             parts.append(f"- {table.id} : {len(table.data)} lignes ; colonnes {columns}\n"
-                         + table.data.head(3).to_string(index=False, max_colwidth=30))
+                         + head_and_tail(table.data, 3, 30))
         return "\n".join(parts)
 
     def execute_python(self, args):

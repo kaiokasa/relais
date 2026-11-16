@@ -54,13 +54,21 @@ class ResultTable:
     unknown_values: list = field(default_factory=list)  # values that match nothing in their column
 
     def preview(self, rows=PREVIEW_ROWS):
-        """What the LLM sees: size, columns, the first rows, and the corrected or unknown values."""
-        shown = self.data.head(rows).to_string(index=False, max_colwidth=40)
-        more = f"\n... {len(self.data) - rows} lignes de plus" if len(self.data) > rows else ""
+        """What the LLM sees: size, columns, the first and last rows, and the corrected or unknown values."""
         notes = "".join(f"\nValeur corrigée : {c}." for c in self.corrections)
         notes += "".join(f"\nAttention : {u}. Corrige la requête." for u in self.unknown_values)
-        return (f"Tableau {self.id} : {len(self.data)} lignes, colonnes {list(self.data.columns)}\n{shown}{more}"
-                + notes)
+        return (f"Tableau {self.id} : {len(self.data)} lignes, colonnes {list(self.data.columns)}\n"
+                + head_and_tail(self.data, rows, 40) + notes)
+
+
+def head_and_tail(frame, rows, width, tail=2):
+    """The first rows and, when the table is longer, the last ones: the agents see where a series ends (a chart
+    of 2019 to 2026 was titled 2019 to 2024 when only the first rows were shown)."""
+    text = frame.to_string(index=False, max_colwidth=width)
+    if len(frame) <= rows + tail:
+        return text
+    lines = text.splitlines()
+    return "\n".join(lines[:rows + 1] + [f"... {len(frame) - rows - tail} lignes non montrées ..."] + lines[-tail:])
 
 
 def function_names(tree):

@@ -182,3 +182,34 @@ def test_invalid_specifications_explain_what_to_fix(spec, message):
 def test_label_spreading_keeps_order_and_gap():
     placed = charts.spread_labels([10.0, 10.2, 30.0], min_gap=1.0)
     assert placed[1] - placed[0] >= 1.0 - 1e-9 and placed[2] > placed[1]
+
+
+def test_sandbox_service_runs_the_job_like_the_local_sandbox(monkeypatch):
+    """The Docker mode: the app sends the job to the sandbox service over HTTP and gets the same result."""
+    import threading
+
+    from relais.tools.sandbox_server import serve
+    server = serve("127.0.0.1", 0)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        monkeypatch.setenv("RELAIS_SANDBOX_URL", f"http://127.0.0.1:{server.server_address[1]}")
+        result = sandbox.run_python("resultat = int(t1['x'].sum())", {"t1": pd.DataFrame({"x": [1, 2, 3]})})
+        assert result.ok and result.resultat == 6
+        blocked = sandbox.run_python("open('x.txt', 'w')")
+        assert not blocked.ok and "interdit" in blocked.erreur
+    finally:
+        server.shutdown()
+
+
+def test_sandbox_service_unreachable(monkeypatch):
+    monkeypatch.setenv("RELAIS_SANDBOX_URL", "http://127.0.0.1:9")
+    result = sandbox.run_python("resultat = 1", timeout_s=1)
+    assert not result.ok and "injoignable" in result.erreur
+
+
+def test_preview_shows_where_a_long_table_ends():
+    from relais.tools.sql import head_and_tail
+    frame = pd.DataFrame({"trimestre": [f"20{19 + i // 4}_T{i % 4 + 1}" for i in range(28)], "taux": range(28)})
+    text = head_and_tail(frame, 3, 30)
+    assert "2019_T1" in text and "2025_T4" in text and "23 lignes non montrées" in text
+    assert head_and_tail(frame.head(5), 3, 30).count("\n") == 5  # short table: shown whole

@@ -23,3 +23,42 @@ jobs:
 
       - name: Run tests
         run: python -m pytest -v
+
+  docker:
+    name: Docker image and sandbox isolation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build and start the two containers
+        run: docker compose up --build --detach --wait
+
+      - name: The sandbox has no Internet access, a read-only file system and no privileges
+        run: |
+          docker exec relais-sandbox python -c "
+          import urllib.request
+          try:
+              urllib.request.urlopen('https://www.google.com', timeout=5)
+          except OSError as error:
+              print('blocked:', error)
+          else:
+              raise SystemExit('the sandbox reached the Internet')"
+          ! docker exec relais-sandbox touch /app/x
+          test "$(docker exec relais-sandbox id -u)" = 65534
+          docker exec relais-sandbox grep -q "CapEff:\s*0000000000000000" /proc/self/status
+
+      - name: The app runs code in the sandbox container
+        run: |
+          docker exec relais python -c "
+          import pandas as pd
+          from relais.tools.sandbox import run_python
+          frame = pd.DataFrame({'a': [1, 2, 3, 4], 'b': [1, 3, 2, 4]})
+          result = run_python('from scipy import stats\nresultat = round(stats.spearmanr(t1.a, t1.b)[0], 1)', {'t1': frame})
+          assert result.ok and result.resultat == 0.8, result
+          blocked = run_python('import socket\nsocket.create_connection((\"1.1.1.1\", 53), timeout=3)')
+          assert not blocked.ok, blocked
+          print('ok')"
+
+      - name: Logs
+        if: failure()
+        run: docker compose logs

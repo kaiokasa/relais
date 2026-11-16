@@ -4,6 +4,11 @@
 
 Observability and process mining of a team of LLM agents that analyses connectivity in France (fixed and mobile).
 
+![Demo: a question, the team at work live, the answer with its chart and sources, then the observability of the run](docs/demo.gif)
+
+*A question asked to the team (in French): the live run (span waterfall, team graph, failure risk), the answer with
+its chart and sources, then the full observability of the run, alerts included.*
+
 A LangGraph multi-agent team (planner, interpreter, SQL agent, statistics agent, visualisation agent, reviewer)
 answers questions
 on open data from ARCEP (the French telecom regulator) and INSEE (the national statistics institute). Every action
@@ -68,8 +73,10 @@ database, not typed by hand.
   statement, a SELECT, only database tables, no function reading files or the environment), and DuckDB works on an
   in-memory copy with `enable_external_access=false` and `lock_configuration=true`.
 - **Statistics agent**: Python in a separate process (isolated mode, empty folder, no API key in the environment)
-  with an audit hook blocking files, network, subprocesses and ctypes, and a timeout. This guards against LLM
-  mistakes; it is not a security boundary against a determined attacker.
+  with an audit hook blocking files, network, subprocesses and ctypes, and a timeout. The hook guards against LLM
+  mistakes; the security boundary is the **container**: with Docker, the code runs in a separate service on a
+  network with no Internet access, with a read-only file system, an unprivileged user, no Linux capabilities and
+  limits on memory, CPU and processes (see [Docker](#docker)).
 - **Visualisation agent**: writes a chart specification that our code checks and draws with Plotly.
 - **Planner**: no tool; splits the question into steps, asks for clarification or declines, then writes the answer.
 - **Interpreter**: called only when code finds an ambiguous term in the question ("rural", "the incumbent
@@ -161,6 +168,18 @@ python evaluation/train_failure_model.py                            # failure pr
 ```
 
 The Gemini key is read from `GEMINI_API_KEY` or `.streamlit/secrets.toml` (ignored by git).
+
+## Docker
+
+```bash
+docker compose --profile donnees run --rm donnees     # once: download the data and build the database
+docker compose up --build                             # then open http://localhost:8510
+```
+
+Two containers from the same image: `relais` (the Streamlit app and the agents, with Internet access for the
+Gemini API) and `relais-sandbox`, which runs the Python code of the statistics agent on an internal network with
+**no Internet access**, a read-only file system (except an in-memory `/tmp`), the `nobody` user, no Linux
+capabilities, `no-new-privileges`, and limits of 1 GB of memory, 2 CPUs and 128 processes.
 
 ## Tests and limits
 

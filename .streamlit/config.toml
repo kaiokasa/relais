@@ -1,5 +1,8 @@
 # Two modes: Streamlit follows the system setting, and the menu (Settings > Theme) switches between them.
 
+[client]
+toolbarMode = "viewer"   # no Deploy button nor developer options; the menu keeps the theme switch
+
 [theme]
 primaryColor = "#b65532"
 font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"

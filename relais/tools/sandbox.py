@@ -7,6 +7,9 @@ ctypes. The code puts what it wants to return in a variable named `resultat`.
 
 The timeout counts from the start of the code (the import of the libraries, about 2 s, is not counted); the process
 is killed when it is reached.
+
+With Docker (docker-compose.yml), RELAIS_SANDBOX_URL points to the sandbox service: the same process runs there, in
+a container with no Internet access, a read-only file system and no privileges (relais/tools/sandbox_server.py).
 """
 import json
 import os
@@ -17,6 +20,8 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -65,7 +70,29 @@ def _read_line(stream, lines):
 
 
 def run_python(code, tables=None, timeout_s=DEFAULT_TIMEOUT_S, max_output=MAX_OUTPUT_CHARS):
-    """Run `code` in the sandbox with the given DataFrames; returns a SandboxResult."""
+    """Run `code` in the sandbox with the given DataFrames; returns a SandboxResult. In the sandbox container when
+    RELAIS_SANDBOX_URL is set, otherwise in a local process."""
+    url = os.environ.get("RELAIS_SANDBOX_URL")
+    if url:
+        return run_remote(url, code, tables, timeout_s, max_output)
+    return run_local(code, tables, timeout_s, max_output)
+
+
+def run_remote(url, code, tables, timeout_s, max_output):
+    job = pickle.dumps({"code": code, "tables": dict(tables or {}), "timeout_s": timeout_s,
+                        "max_output": max_output})
+    request = urllib.request.Request(url.rstrip("/") + "/run", data=job, method="POST",
+                                     headers={"Content-Type": "application/octet-stream"})
+    try:
+        with urllib.request.urlopen(request, timeout=timeout_s + STARTUP_TIMEOUT_S + 10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
+        return SandboxResult(ok=False, erreur=f"Le bac à sable est injoignable : {error}")
+    return SandboxResult(**payload)
+
+
+def run_local(code, tables=None, timeout_s=DEFAULT_TIMEOUT_S, max_output=MAX_OUTPUT_CHARS):
+    """Run `code` in a separate local Python process."""
     job = pickle.dumps({"code": code, "tables": dict(tables or {}), "max_output": max_output})
     with tempfile.TemporaryDirectory(prefix="relais-sandbox-") as workdir:
         process = subprocess.Popen([sys.executable, "-I", "-X", "utf8", str(RUNNER)], cwd=workdir,
