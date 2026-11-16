@@ -147,4 +147,22 @@ def test_dashboard_starts_without_data_or_key(monkeypatch, tmp_path):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     app = AppTest.from_file("app/dashboard.py", default_timeout=60).run()
     assert not app.exception
-    assert app.title[0].value == "Relais" and len(app.tabs) == 6
+    assert any("RELAIS" in m.value for m in app.sidebar.markdown)
+    assert any("Observer une équipe d'agents" in m.value for m in app.markdown)
+
+
+def test_console_figures():
+    from relais.console import risk_curve, risk_gauge, waterfall_figure
+    plan = Event(1, None, "planificateur", "planifier", 0.0, 1.0)
+    call = Event(2, 1, "planificateur", "appel_llm", 0.1, 0.9)
+    failed = Event(3, None, "sql", "executer_sql", 1.0, 1.5, ok=False, attributes={"erreur": "Table inconnue"})
+    running = Event(4, None, "relecteur", "relire", 1.6, None)
+    figure = waterfall_figure([plan, call, failed], [running], started_at=0.0, now=2.0)
+    bar = figure.data[0]
+    assert list(bar.base) == [0.0, 0.1, 1.0, 1.6] and bar.x[3] == pytest.approx(0.4)
+    assert bar.marker.color[2] == "#e66767" and bar.text[2].startswith("✗")
+    names = [a.text for a in figure.layout.annotations]
+    assert names[0] == "<b>planificateur</b>" and "appel au modèle" in names[1]
+    assert waterfall_figure([], []).data == ()
+    assert risk_gauge(0.72).data[0].value == 72 and risk_gauge(None).data[0].value is None
+    assert len(risk_curve([(1, 0.2), (2, 0.1)]).data[0].x) == 2

@@ -18,6 +18,9 @@ CHART_TYPES = {"line": "courbe", "bar": "barres", "scatter": "nuage de points", 
                "histogram": "histogramme"}
 PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
 SURFACE, INK, INK_2, MUTED, GRID, AXIS = "#fcfcfb", "#0b0b0b", "#52514e", "#898781", "#e1e0d9", "#c3c2b7"
+# the same eight hues stepped for a dark surface (validated palette, dark mode), and the dark chart chrome
+PALETTE_DARK = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#0ca30c", "#9085e9", "#e66767"]
+SURFACE_DARK, INK_DARK, INK_2_DARK, GRID_DARK, AXIS_DARK = "#1a1a19", "#f0efec", "#c3c2b7", "#2c2c2a", "#383835"
 MAX_SERIES = len(PALETTE)
 MAX_CATEGORIES = 60
 MAX_POINTS = 100_000
@@ -185,3 +188,44 @@ def render(spec, tables):
     if kind == "line" and 2 <= series <= 4:
         label_line_ends(figure)
     return Chart(figure=figure, type=kind, series=series, points=len(data), spec=dict(spec))
+
+
+DARK_COLOURS = {**dict(zip(PALETTE, PALETTE_DARK)), SURFACE: SURFACE_DARK, INK: INK_DARK, INK_2: INK_2_DARK,
+                GRID: GRID_DARK, AXIS: AXIS_DARK, "#e1e0d9": GRID_DARK}
+
+
+def _dark(colour):
+    if isinstance(colour, str):
+        return DARK_COLOURS.get(colour.lower(), DARK_COLOURS.get(colour, colour))
+    if isinstance(colour, (list, tuple)):
+        return [_dark(c) for c in colour]
+    return colour
+
+
+def to_dark(figure):
+    """The same figure for a dark interface: surfaces, ink and series colours swapped for their dark steps (own
+    steps of the same hues, not an automatic inversion)."""
+    figure.update_layout(paper_bgcolor=SURFACE_DARK, plot_bgcolor=SURFACE_DARK, font={"color": INK_2_DARK},
+                         title_font_color=INK_DARK, legend_font_color=INK_2_DARK)
+    figure.update_xaxes(gridcolor=GRID_DARK, linecolor=AXIS_DARK, tickfont_color=MUTED, title_font_color=INK_2_DARK)
+    figure.update_yaxes(gridcolor=GRID_DARK, linecolor=AXIS_DARK, tickfont_color=MUTED, title_font_color=INK_2_DARK)
+    for trace in figure.data:
+        for part in ("line", "marker"):
+            if hasattr(trace, part) and getattr(trace, part) is not None:
+                obj = getattr(trace, part)
+                if getattr(obj, "color", None) is not None:
+                    obj.color = _dark(obj.color)
+                if getattr(obj, "line", None) is not None and getattr(obj.line, "color", None) is not None:
+                    obj.line.color = _dark(obj.line.color)
+        if getattr(trace, "fillcolor", None):
+            trace.fillcolor = _dark(trace.fillcolor)
+        if getattr(trace, "textfont", None) is not None and trace.textfont.color is not None:
+            trace.textfont.color = _dark(trace.textfont.color)
+    for annotation in figure.layout.annotations:
+        if annotation.font and annotation.font.color:
+            annotation.font.color = _dark(annotation.font.color)
+        if annotation.arrowcolor:
+            annotation.arrowcolor = _dark(annotation.arrowcolor)
+        if annotation.bgcolor:
+            annotation.bgcolor = _dark(annotation.bgcolor)
+    return figure

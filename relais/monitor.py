@@ -33,6 +33,8 @@ class LiveMonitor:
         self.reference = reference if reference is not None else reference_transitions()
         self.risk_model = risk_model
         self.events, self.alerts = [], []
+        self.running = {}        # events started and not finished yet
+        self.started_at = None
         self.path, self.active = [], None
         self.edges = Counter()
         self.risks = []          # (number of finished events, risk)
@@ -43,9 +45,13 @@ class LiveMonitor:
     def __call__(self, moment, event):
         with self._lock:
             if moment == "debut":
+                self.running[event.id] = event
+                if self.started_at is None:
+                    self.started_at = event.start
                 if event.parent is None:
                     self._new_turn(event)
                 return
+            self.running.pop(event.id, None)
             self.events.append(event)
             self._check(event)
             if event.parent is None and self.active == event.agent:
@@ -84,13 +90,15 @@ class LiveMonitor:
             if answer is not None and not answer.approuve:
                 self._alert("alerte", "Réponse donnée sans l'approbation du relecteur.")
             self.active, self.finished = None, True
+            self.running.clear()
 
     # read by the dashboard -----------------------------------------------------------------------------
     def snapshot(self):
         with self._lock:
             return {"path": list(self.path), "active": self.active, "edges": Counter(self.edges),
                     "alerts": list(self.alerts), "events": list(self.events), "risks": list(self.risks),
-                    "finished": self.finished}
+                    "finished": self.finished, "running": list(self.running.values()),
+                    "started_at": self.started_at}
 
     @property
     def risk(self):
