@@ -7,7 +7,8 @@ Observabilité et process mining d'une équipe d'agents LLM qui analyse la conne
 ![Démonstration : une question, l'équipe au travail en direct, la réponse avec son graphique et ses sources, puis l'observabilité du run](docs/demo.gif)
 
 *Une question posée à l'équipe : le déroulé en direct (cascade des spans, graphe de l'équipe, risque d'échec), la
-réponse avec son graphique et ses sources, puis l'observabilité complète du run (alertes comprises).*
+réponse avec son graphique et ses sources, l'observabilité complète du run avec ses alertes (ici, le relecteur
+renvoie une première version de la réponse), puis la requête SQL et son résultat.*
 
 Une équipe multi-agent LangGraph (planificateur, interprète, agent SQL, agent statistiques, agent visualisation,
 relecteur)

@@ -7,7 +7,8 @@ Observability and process mining of a team of LLM agents that analyses connectiv
 ![Demo: a question, the team at work live, the answer with its chart and sources, then the observability of the run](docs/demo.gif)
 
 *A question asked to the team (in French): the live run (span waterfall, team graph, failure risk), the answer with
-its chart and sources, then the full observability of the run, alerts included.*
+its chart and sources, the full observability of the run with its alerts (here the reviewer sends a first draft
+back), then the SQL query and its result.*
 
 A LangGraph multi-agent team (planner, interpreter, SQL agent, statistics agent, visualisation agent, reviewer)
 answers questions
